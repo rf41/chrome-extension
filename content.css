@@ -1,0 +1,376 @@
+/**
+ * Modern Styles for the Custom Shortcut floating panel
+ */
+
+/* Reset styles for panel elements */
+#shortcut-ext-panel *,
+#shortcut-ext-panel *::before,
+#shortcut-ext-panel *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif !important;
+}
+
+/* Main panel container */
+.shortcut-ext-panel {
+  position: fixed !important;
+  bottom: 20px !important;
+  right: 20px !important;
+  z-index: 9999999 !important;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1), 0 5px 10px rgba(0, 0, 0, 0.05) !important;
+  background: #ffffff !important;
+  overflow: hidden !important;
+  max-width: 380px !important;
+  border: none !important;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+}
+
+/* Toggle button - Modern floating action button */
+.shortcut-ext-toggle {
+  width: 56px !important;
+  height: 56px !important;
+  border-radius: 50% !important;
+  background: linear-gradient(135deg, #4285f4, #34a853) !important;
+  border: none !important;
+  color: white !important;
+  font-size: 20px !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2) !important;
+  position: absolute !important;
+  bottom: 0 !important;
+  right: 0 !important;
+  z-index: 2 !important;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+  overflow: hidden !important;
+}
+
+.shortcut-ext-toggle:hover {
+  transform: scale(1.05) !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25) !important;
+}
+
+.shortcut-ext-toggle svg {
+  width: 26px !important;
+  height: 26px !important;
+  fill: none !important;
+  stroke: white !important;
+}
+
+/* Panel header */
+.shortcut-ext-header {
+  display: none !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 16px 20px !important;
+  border-bottom: 1px solid #f0f0f0 !important;
+  background: #ffffff !important;
+}
+
+.shortcut-ext-header h3 {
+  margin: 0 !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: #333 !important;
+}
+
+.shortcut-ext-close {
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 4px !important;
+  border-radius: 50% !important;
+  color: #666 !important;
+}
+
+.shortcut-ext-close:hover {
+  background: #f5f5f5 !important;
+  color: #333 !important;
+}
+
+/* Panel states */
+.shortcut-ext-collapsed {
+  width: 56px !important;
+  height: 56px !important;
+}
+
+.shortcut-ext-expanded {
+  width: 320px !important;
+  height: auto !important;
+  max-height: 80vh !important;
+}
+
+.shortcut-ext-expanded .shortcut-ext-toggle {
+  transform: scale(0) !important;
+  opacity: 0 !important;
+}
+
+.shortcut-ext-expanded .shortcut-ext-header {
+  display: flex !important;
+}
+
+/* Hide elements when collapsed */
+.shortcut-ext-collapsed .shortcut-ext-shortcuts,
+.shortcut-ext-collapsed .shortcut-ext-header,
+.shortcut-ext-collapsed .shortcut-ext-search {
+  display: none !important;
+}
+
+/* Search box */
+.shortcut-ext-search {
+  padding: 12px 16px !important;
+  border-bottom: 1px solid #f0f0f0 !important;
+}
+
+.shortcut-ext-search-container {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.shortcut-ext-search-icon {
+  position: absolute !important;
+  left: 10px !important;
+  color: #999 !important;
+}
+
+#shortcut-ext-search-input {
+  width: 100% !important;
+  padding: 8px 8px 8px 35px !important;
+  border: 1px solid #e0e0e0 !important;
+  border-radius: 6px !important;
+  font-size: 13px !important;
+  outline: none !important;
+  transition: border-color 0.2s ease !important;
+}
+
+#shortcut-ext-search-input:focus {
+  border-color: #4285f4 !important;
+}
+
+/* Shortcuts container - Modern scrollable area */
+.shortcut-ext-shortcuts {
+  overflow-y: auto !important;
+  max-height: calc(80vh - 110px) !important; /* Adjust for header + search */
+  padding: 8px !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: #ccc #f5f5f5 !important;
+}
+
+.shortcut-ext-shortcuts::-webkit-scrollbar {
+  width: 6px !important;
+}
+
+.shortcut-ext-shortcuts::-webkit-scrollbar-thumb {
+  background-color: #ccc !important;
+  border-radius: 3px !important;
+}
+
+.shortcut-ext-shortcuts::-webkit-scrollbar-track {
+  background-color: #f5f5f5 !important;
+}
+
+/* Grid layout for shortcuts */
+.shortcut-ext-grid {
+  display: grid !important;
+  grid-template-columns: repeat(1, 1fr) !important;
+  gap: 8px !important;
+}
+
+/* Shortcut item */
+.shortcut-ext-item {
+  border-radius: 8px !important;
+  overflow: hidden !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.shortcut-ext-item:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.05) !important;
+}
+
+/* Add these styles for the site-specific shortcuts */
+
+.shortcut-ext-item.site-specific {
+  position: relative;
+  border-left: 3px solid #4caf50;
+}
+
+.shortcut-ext-item.site-specific::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background-color: #4caf50;
+  border-top-left-radius: 4px;
+  border-bottom-left-radius: 4px;
+}
+
+.site-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  background-color: #4caf50;
+  color: white;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+/* Shortcut link */
+.shortcut-ext-link {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 12px !important;
+  color: #333 !important;
+  text-decoration: none !important;
+  transition: background-color 0.2s ease !important;
+  border-radius: 8px !important;
+}
+
+.shortcut-ext-link:hover {
+  background-color: #f8f9fa !important;
+}
+
+/* Initials icon */
+.shortcut-ext-icon-wrapper {
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  position: relative;
+}
+
+.shortcut-ext-initials {
+  color: white !important;
+  font-weight: 600 !important;
+  font-size: 16px !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.1) !important;
+}
+
+/* Details section */
+.shortcut-ext-details {
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+.shortcut-ext-title {
+  font-weight: 500 !important;
+  font-size: 14px !important;
+  color: #333 !important;
+  text-overflow: ellipsis !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+}
+
+.shortcut-ext-url {
+  font-size: 12px !important;
+  color: #666 !important;
+  text-overflow: ellipsis !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+}
+
+/* Loading spinner */
+.shortcut-ext-loading {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 30px !important;
+  color: #666 !important;
+  gap: 15px !important;
+}
+
+.shortcut-ext-spinner {
+  width: 30px !important;
+  height: 30px !important;
+  border: 3px solid #f3f3f3 !important;
+  border-top: 3px solid #4285f4 !important;
+  border-radius: 50% !important;
+  animation: shortcut-ext-spin 1s linear infinite !important;
+}
+
+@keyframes shortcut-ext-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Empty state */
+.shortcut-ext-empty {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 30px !important;
+  color: #666 !important;
+  text-align: center !important;
+  gap: 15px !important;
+}
+
+.shortcut-ext-empty svg {
+  color: #ccc !important;
+  margin-bottom: 10px !important;
+}
+
+/* Footer */
+.shortcut-ext-footer {
+  padding: 12px 16px !important;
+  text-align: center !important;
+  border-top: 1px solid #f0f0f0 !important;
+  margin-top: 8px !important;
+}
+
+.shortcut-ext-option-btn {
+  background-color: #4285f4 !important;
+  color: white !important;
+  border: none !important;
+  padding: 8px 16px !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  transition: background-color 0.2s ease !important;
+  box-shadow: 0 2px 4px rgba(66, 133, 244, 0.2) !important;
+}
+
+.shortcut-ext-option-btn:hover {
+  background-color: #3367d6 !important;
+}
+
+/* Add a section header styling */
+.shortcut-ext-section {
+  width: 100%;
+  padding: 8px 12px;
+  background-color: rgba(0,0,0,0.05);
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.shortcut-ext-section h4 {
+  margin: 0;
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}

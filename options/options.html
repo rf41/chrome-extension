@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Custom Shortcut Options</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    input[type="url"], input[type="text"] {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+    button {
+      background-color: #4285f4;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+    button:hover {
+      background-color: #3367d6;
+    }
+    #status {
+      margin-top: 15px;
+      color: green;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      padding: 8px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    .shortcut-note {
+      margin: 20px 0;
+      padding: 15px;
+      background-color: #f8f8f8;
+      border-radius: 4px;
+      font-size: 14px;
+      border-left: 4px solid #4285f4;
+    }
+    .shortcut-info {
+      margin-top: 10px;
+    }
+    .delete-btn {
+      background-color: #dc3545;
+    }
+    .delete-btn:hover {
+      background-color: #bd2130;
+    }
+    .kbd-input {
+      width: 150px;
+      text-align: center;
+      font-family: monospace;
+    }
+    .shortcut-editor {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .shortcut-key {
+      display: inline-block;
+      padding: 3px 5px;
+      font-size: 12px;
+      font-family: monospace;
+      background-color: #f1f1f1;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+    }
+    .shortcut-hint {
+      font-size: 12px;
+      color: #666;
+      margin-top: 4px;
+    }
+    .command-id-input {
+      width: 150px;
+    }
+    .command-id-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .warning {
+      background-color: #fff3cd;
+      border-left-color: #ffc107;
+    }
+    .highlight {
+      background-color: #e8f4fd;
+      border-left-color: #4285f4;
+    }
+    .primary-btn {
+      background-color: #4285f4;
+      color: white;
+      font-weight: bold;
+      padding: 10px 20px;
+      margin: 10px 0;
+    }
+    .status-indicator {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 5px;
+    }
+    .status-active {
+      background-color: #4caf50;
+    }
+    .status-inactive {
+      background-color: #f44336;
+    }
+    .info {
+      background-color: #e8f4fd;
+      border-left-color: #2196f3;
+    }
+    .domain-cell {
+      max-width: 150px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .domain-cell:hover {
+      overflow: visible;
+      white-space: normal;
+      word-break: break-all;
+      background-color: #f8f9fa;
+      position: relative;
+      z-index: 1;
+    }
+  </style>
+</head>
+<body>
+  <h1>Custom Shortcut Settings</h1>
+
+  <div class="shortcut-note highlight">
+    <p><strong>About Website Shortcuts</strong></p>
+
+    <p>This extension allows you to create shortcuts to your favorite websites that can be accessed via:</p>
+    <ul>
+      <li>The floating shortcut widget on any webpage</li>
+      <li>Optional keyboard shortcuts (requires additional configuration)</li>
+    </ul>
+    <p>You can set up to 10 keyboard shortcuts for your most frequently used websites.</p>
+    
+  </div>  
+
+  
+
+  <div class="shortcut-note">
+    <p><strong>Default Shortcuts:</strong></p>
+    <ul>
+      <li><span class="shortcut-key">Ctrl+Shift+U</span> - Open this settings page</li>
+      <li><span class="shortcut-key">Alt+Shift+S</span> - Toggle shortcuts widget</li>
+    </ul>
+  </div>
+  
+  <div id="customContent">
+    <h2>Custom URL Keyboard Shortcuts</h2>
+    
+    <p>Hot to add custom shortcuts to directly open specific websites with your chosen keyboard shortcuts.</p>
+    
+    <div class="shortcut-note warning">
+        <p><strong>Important Instructions:</strong></p>
+        <ol>
+          <li>Add your custom URL shortcuts below</li>
+          <li>After adding a shortcut, go to <code>chrome://extensions/shortcuts</code></li>
+          <li>Find this extension and set the keyboard combination for your shortcuts</li>
+          <li>Return to this page to manage your shortcuts</li>
+        </ol>
+        <p>Chrome extensions require keyboard shortcuts to be configured through Chrome's settings.</p>
+      </div>
+    
+      <div class="shortcut-note highlight">
+        <p><strong>Set Up Your Keyboard Shortcuts</strong></p>
+        <p>You need to configure keyboard shortcuts for your commands to work:</p>
+        <button id="configureShortcutsBtn" class="primary-btn">Configure Keyboard Shortcuts (Optional)</button>
+      </div>
+
+    <h2>Add Your Custom Menu Widget</h2>  
+    <form id="shortcutForm">
+      <div class="form-group">
+        <label for="title">Shortcut Title:</label>
+        <input type="text" id="title" placeholder="Google Search" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="shortcutUrl">URL:</label>
+        <input type="url" id="shortcutUrl" placeholder="https://google.com" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="commandIdSelect">Command ID:</label>
+        <div class="command-id-group">
+          <select id="commandIdSelect" class="command-id-input">
+            <option value="">Select a command ID</option>
+          </select>
+        </div>
+        <div class="shortcut-hint">Select from one of the pre-defined commands</div>
+      </div>
+
+      <div class="form-group">
+        <label for="domainTargeting">Target Domains (optional):</label>
+        <input type="text" id="domainTargeting" placeholder="example.com, *.example.org, /.*\.app$/">
+        <div class="shortcut-hint">
+          Comma-separated domains where this shortcut should appear. Supports:
+          <ul>
+            <li>Exact domains: <code>example.com</code></li>
+            <li>Wildcard subdomains: <code>*.example.org</code></li>
+            <li>Regex patterns: <code>/.*\.app$/</code></li>
+          </ul>
+          Leave empty to show on all websites.
+        </div>
+      </div>
+      
+      <button type="submit" id="addBtn">Add Custom Shortcut</button>
+    </form>
+    
+    <div id="customStatus" class="status"></div>
+    
+    <table id="shortcutsTable" class="styled-table">
+      <thead>
+        <tr>
+          <th class="sortable" data-sort="command">Command ID <span class="sort-icon">↕</span></th>
+          <th class="sortable" data-sort="title">Title <span class="sort-icon">↕</span></th>
+          <th class="sortable" data-sort="url">URL <span class="sort-icon">↕</span></th>
+          <th>Keyboard Shortcut <span class="optional-badge">optional</span></th>
+          <th class="sortable" data-sort="domain">Target Domains <span class="sort-icon">↕</span></th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="shortcutsBody">
+        <!-- Shortcut entries will be added here -->
+      </tbody>
+    </table>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>
