@@ -195,6 +195,7 @@
         <p><strong>Set Up Your Keyboard Shortcuts</strong></p>
         <p>You need to configure keyboard shortcuts for your commands to work:</p>
         <button id="configureShortcutsBtn" class="primary-btn">Configure Keyboard Shortcuts (Optional)</button>
+        <button id="shortcutGuideBtn" class="guide-btn">How to Configure Shortcuts</button>
       </div>
 
     <h2>Add Your Custom Menu Widget</h2>  
@@ -219,18 +220,11 @@
         <div class="shortcut-hint">Select from one of the pre-defined commands</div>
       </div>
 
+      <!-- Update the domain targeting input field to be read-only -->
       <div class="form-group">
-        <label for="domainTargeting">Target Domains (optional):</label>
-        <input type="text" id="domainTargeting" placeholder="example.com, *.example.org, /.*\.app$/">
-        <div class="shortcut-hint">
-          Comma-separated domains where this shortcut should appear. Supports:
-          <ul>
-            <li>Exact domains: <code>example.com</code></li>
-            <li>Wildcard subdomains: <code>*.example.org</code></li>
-            <li>Regex patterns: <code>/.*\.app$/</code></li>
-          </ul>
-          Leave empty to show on all websites.
-        </div>
+        <label for="domainTargeting">Target Domain:</label>
+        <input type="text" id="domainTargeting" readonly placeholder="Automatically set from URL">
+        <div class="shortcut-hint">Domain is automatically determined from the URL you enter</div>
       </div>
       
       <button type="submit" id="addBtn">Add Custom Shortcut</button>

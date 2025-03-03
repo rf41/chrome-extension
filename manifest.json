@@ -2,30 +2,36 @@
   "manifest_version": 3,
   "name": "Custom Shortcut Extension",
   "version": "1.0",
-  "description": "Open custom URLs using shortcut keys",
+  "description": "Open custom URLs using keyboard shortcuts and access site-specific shortcuts through a floating panel",
   "background": {
     "service_worker": "background.js"
   },
-  "permissions": ["tabs", "storage", "commands"],
-  "host_permissions": ["<all_urls>"],
+  "permissions": ["storage", "commands", "activeTab", "tabs", "notifications"],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "options_page": "options/options.html",
   "action": {
     "default_popup": "popup/popup.html",
-    "default_title": "Custom Shortcut"
+    "default_title": "Custom Shortcut",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
+      "matches": ["http://*/*", "https://*/*"],
       "js": ["content.js"],
       "css": ["content.css"]
     }
   ],
-  "web_accessible_resources": [
-    {
-      "resources": ["icons/*"],
-      "matches": ["<all_urls>"]
-    }
-  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'"
+  },
   "commands": {
     "open-custom-url": {
       "suggested_key": {
