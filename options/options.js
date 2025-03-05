@@ -23,7 +23,7 @@ const defaultStatus = document.getElementById('defaultStatus');
 // Default URL
 const DEFAULT_URL = "https://example.com";
 // Maximum number of custom shortcuts (limited by manifest)
-const MAX_SHORTCUTS = 5;
+const MAX_SHORTCUTS = 3;
 
 // State for recording keyboard shortcuts
 let isRecording = false;
@@ -284,7 +284,7 @@ function processFormSubmission(title, url, commandId, isUpdate, editIndex) {
     domains = [currentDomain];
   }
   
-  // Check if we already have 5 shortcuts for this domain
+  // Check if we already have 3 shortcuts for this domain
   chrome.storage.sync.get(['customShortcuts'], (result) => {
     const shortcuts = result.customShortcuts || [];
     
@@ -298,8 +298,8 @@ function processFormSubmission(title, url, commandId, isUpdate, editIndex) {
     }).length;
     
     // Check if limit reached
-    if (domainShortcutsCount >= 5) {
-      customStatus.textContent = `Maximum limit of 5 shortcuts per domain (${currentDomain}) reached. Please delete some shortcuts first.`;
+    if (domainShortcutsCount >= 3) {
+      customStatus.textContent = `Maximum limit of 3 shortcuts per domain (${currentDomain}) reached. Please delete some shortcuts first.`; 
       customStatus.style.color = "red";
       return;
     }
@@ -311,7 +311,6 @@ function processFormSubmission(title, url, commandId, isUpdate, editIndex) {
       shortcuts[editIndex].title = title;
       shortcuts[editIndex].url = url;
       shortcuts[editIndex].domains = domains; // Force domain to match URL
-      
 
       // Save updated shortcuts
       chrome.storage.sync.set({ customShortcuts: shortcuts }, () => {
@@ -336,7 +335,7 @@ function processFormSubmission(title, url, commandId, isUpdate, editIndex) {
       // Adding new shortcut
       // Only check for duplicate command ID if one is provided
       if (commandId && commandId !== '' && shortcuts.some(s => s.command === commandId)) {
-        customStatus.textContent = `Command ID "${commandId}" already exists. Please choose a different one.`;
+        customStatus.textContent = `Command ID "${commandId}" already exists. Please choose a different one.`; 
         customStatus.style.color = "red";
         return;
       }
@@ -486,7 +485,7 @@ function loadCustomShortcuts(sortColumn = 'domain', sortDirection = 'asc') {
             <td colspan="6" class="domain-header-cell">
               <strong>Domain: ${domain}</strong>
               <span class="domain-count">
-                (${domainCount}/5 shortcuts${domainCount >= 5 ? ' - LIMIT REACHED' : ''})
+                (${domainCount}/3 shortcuts${domainCount >= 3 ? ' - LIMIT REACHED' : ''}) // Ubah dari 5 ke 3
               </span>
             </td>
           `;

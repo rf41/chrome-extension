@@ -164,9 +164,6 @@ function toggleBtn_onClick() {
   panel.classList.remove('shortcut-ext-collapsed');
   panel.classList.add('shortcut-ext-expanded', expandDirectionClass);
   
-  // Load shortcuts and ensure panel is in viewport
-  loadShortcuts();
-  
   // Set a timeout to adjust height after shortcuts are loaded
   setTimeout(() => {
     adjustPanelHeight(panel);
@@ -693,6 +690,7 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', async () => {
     if (!(await isBlacklistedDomain()) && await shouldInjectUI()) {
       createShortcutPanel();
+      loadShortcuts(); // Load shortcuts when the page is fully loaded
     }
   });
 } else {
@@ -700,6 +698,7 @@ if (document.readyState === 'loading') {
     .then(([isBlacklisted, shouldInject]) => {
       if (!isBlacklisted && shouldInject) {
         createShortcutPanel();
+        loadShortcuts(); // Load shortcuts when the page is fully loaded
       }
     });
 }
@@ -708,14 +707,9 @@ if (document.readyState === 'loading') {
 document.addEventListener('keydown', (e) => {
   if (e.altKey && e.shiftKey && e.key === 'S') {
     const panel = document.getElementById('shortcut-ext-panel');
-    if (panel) {
-      panel.classList.toggle('shortcut-ext-collapsed');
-      panel.classList.toggle('shortcut-ext-expanded');
-
-      // Load shortcuts when panel is expanded
-      if (panel.classList.contains('shortcut-ext-expanded')) {
-        loadShortcuts();
-      }
+    if (panel && panel.classList.contains('shortcut-ext-expanded')) {
+      panel.classList.add('shortcut-ext-collapsed');
+      loadShortcuts();
     }
   }
 });
