@@ -39,12 +39,6 @@
       },
       "description": "Open Settings"
     },
-    "_execute_action": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+P"
-      },
-      "description": "Open Popup"
-    },
     "shortcut-01": {
       "description": "Keyboard Shortcut 1"
     },
