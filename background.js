@@ -102,7 +102,7 @@ function isValidUrl(urlString) {
 let lastCommandTime = 0;
 const COMMAND_COOLDOWN_MS = 1000; // 1 second cooldown between commands
 
-// Add this new function after isValidUrl
+// Check the url safety before opening
 function checkUrlSafety(url, callback) {
   // Basic safety check first
   if (!isValidUrl(url)) {
@@ -110,13 +110,8 @@ function checkUrlSafety(url, callback) {
     return;
   }
   
-  // If you want to implement more advanced security in the future,
-  // you could add an API call to a web safety service here
-  
   callback(true, "URL passed safety checks");
 }
-
-// Add this function after isValidUrl and before the event listeners
 
 // Sanitize URLs before opening them
 function sanitizeUrl(url) {
@@ -129,14 +124,14 @@ function sanitizeUrl(url) {
     
     // Ensure protocol is http or https
     if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
-      return 'https://example.com'; // Return a safe default if protocol is suspicious
+      return DEFAULT_URL; // Return a safe default if protocol is suspicious
     }
     
     // Return the sanitized URL
     return parsedUrl.toString();
   } catch (error) {
     console.error("URL sanitization failed:", error);
-    return 'https://example.com'; // Return a safe default on error
+    return DEFAULT_URL; // Return a safe default on error
   }
 }
 

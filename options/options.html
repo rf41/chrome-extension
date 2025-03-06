@@ -4,151 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Custom Shortcut Options</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      max-width: 800px;
-      margin: 0 auto;
-    }
-    .form-group {
-      margin-bottom: 15px;
-    }
-    label {
-      display: block;
-      margin-bottom: 5px;
-      font-weight: bold;
-    }
-    input[type="url"], input[type="text"] {
-      width: 100%;
-      padding: 8px;
-      box-sizing: border-box;
-    }
-    button {
-      background-color: #4285f4;
-      color: white;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 4px;
-      cursor: pointer;
-      margin-right: 10px;
-    }
-    button:hover {
-      background-color: #3367d6;
-    }
-    #status {
-      margin-top: 15px;
-      color: green;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-    }
-    th, td {
-      padding: 8px;
-      text-align: left;
-      border-bottom: 1px solid #ddd;
-    }
-    th {
-      background-color: #f2f2f2;
-    }
-    .shortcut-note {
-      margin: 20px 0;
-      padding: 15px;
-      background-color: #f8f8f8;
-      border-radius: 4px;
-      font-size: 14px;
-      border-left: 4px solid #4285f4;
-    }
-    .shortcut-info {
-      margin-top: 10px;
-    }
-    .delete-btn {
-      background-color: #dc3545;
-    }
-    .delete-btn:hover {
-      background-color: #bd2130;
-    }
-    .kbd-input {
-      width: 150px;
-      text-align: center;
-      font-family: monospace;
-    }
-    .shortcut-editor {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-    }
-    .shortcut-key {
-      display: inline-block;
-      padding: 3px 5px;
-      font-size: 12px;
-      font-family: monospace;
-      background-color: #f1f1f1;
-      border: 1px solid #ccc;
-      border-radius: 3px;
-    }
-    .shortcut-hint {
-      font-size: 12px;
-      color: #666;
-      margin-top: 4px;
-    }
-    .command-id-input {
-      width: 150px;
-    }
-    .command-id-group {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .warning {
-      background-color: #fff3cd;
-      border-left-color: #ffc107;
-    }
-    .highlight {
-      background-color: #e8f4fd;
-      border-left-color: #4285f4;
-    }
-    .primary-btn {
-      background-color: #4285f4;
-      color: white;
-      font-weight: bold;
-      padding: 10px 20px;
-      margin: 10px 0;
-    }
-    .status-indicator {
-      display: inline-block;
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      margin-right: 5px;
-    }
-    .status-active {
-      background-color: #4caf50;
-    }
-    .status-inactive {
-      background-color: #f44336;
-    }
-    .info {
-      background-color: #e8f4fd;
-      border-left-color: #2196f3;
-    }
-    .domain-cell {
-      max-width: 150px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .domain-cell:hover {
-      overflow: visible;
-      white-space: normal;
-      word-break: break-all;
-      background-color: #f8f9fa;
-      position: relative;
-      z-index: 1;
-    }
-  </style>
+  <link rel="stylesheet" href="options.css">
   <script src="https://www.gstatic.com/chrome/webstore/images/payments/google-payments-inapp.js"></script>
 </head>
 <body>
@@ -165,8 +21,6 @@
     <p>You can set up to 10 keyboard shortcuts for your most frequently used websites.</p>
     
   </div>  
-
-  
 
   <div class="shortcut-note">
     <p><strong>Default Shortcuts:</strong></p>
@@ -221,7 +75,6 @@
         <div class="shortcut-hint">Select from one of the pre-defined commands</div>
       </div>
 
-      <!-- Update the domain targeting input field to be read-only -->
       <div class="form-group">
         <label for="domainTargeting">Target Domain:</label>
         <input type="text" id="domainTargeting" readonly placeholder="Automatically set from URL">

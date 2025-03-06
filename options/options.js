@@ -21,7 +21,7 @@ const saveBtn = document.getElementById('saveBtn');
 const defaultStatus = document.getElementById('defaultStatus');
 
 // Default URL
-const DEFAULT_URL = "https://example.com";
+const DEFAULT_URL = "chrome://newtab"; // Default to Chrome's New Tab page
 // Maximum number of custom shortcuts (limited by manifest)
 const MAX_SHORTCUTS = 3;
 
@@ -50,11 +50,9 @@ const AVAILABLE_COMMANDS = [
     'shortcut-10'
   ];
 
-// Add near the top of options.js after existing constants
 const FREE_USER_LIMIT = 3; // Free users can only add 3 shortcuts per domain
 let isPremiumUser = false; // Default to free user
 
-// Add this constant near the top of options.js
 const EXTENSION_ID = chrome.runtime.id; // Gets the current extension ID automatically
 
 // Function to get next available command Id
@@ -72,7 +70,7 @@ function getNextAvailableCommandId() {
   });
 }
 
-// Improved URL validation function - add this near the top of your file
+// Improved URL validation function
 function isValidUrl(string) {
   // Handle empty strings
   if (!string || string.trim() === '') return false;
@@ -94,7 +92,7 @@ function isValidUrl(string) {
   }
 }
 
-// Tab navigation - dengan pengecekan null
+// Tab navigation
 if (defaultTabBtn && customTabBtn) {
   defaultTabBtn.addEventListener('click', () => {
     defaultTabBtn.classList.add('active');
@@ -111,7 +109,7 @@ if (defaultTabBtn && customTabBtn) {
   });
 }
 
-// Pisahkan inisialisasi UI dan pengisian data
+// Separate UI initialization and data filling
 document.addEventListener('DOMContentLoaded', async () => {
   // Check premium status first
   await checkPremiumStatus();
@@ -129,7 +127,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadData();
 });
 
-// Inisialisasi UI elements
+// Initialization UI elements
 function initializeUI() {
   // Add handler for Configure Shortcuts button
   if (configureShortcutsBtn) {
@@ -216,7 +214,7 @@ if (saveBtn) {
   });
 }
 
-// Update the form submission handler
+// Form submission handler
 if (shortcutForm) {
   shortcutForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -256,7 +254,7 @@ if (shortcutForm) {
   });
 }
 
-// Add this before processFormSubmission function
+// Get shortcut limit based on premium status
 function getShortcutLimit() {
   return isPremiumUser ? Infinity : FREE_USER_LIMIT;
 }
@@ -680,8 +678,7 @@ function showShortcutConfigGuide() {
       <button class="close-guide-btn">Close Guide</button>
     </div>
   `;
-  
-  // Rest of the function remains the same...
+
 }
 
 
@@ -890,7 +887,7 @@ function editShortcut(index) {
       domainTargetingInput.setAttribute('readonly', 'readonly');
     }
     
-    // Handle command ID dropdown - ALLOW EDITING instead of disabling
+    // Handle command ID dropdown while user edit the shortcut
     const commandIdSelect = document.getElementById('commandIdSelect');
     if (commandIdSelect) {
       // Re-initialize the dropdown to show all available options plus the current one
@@ -955,7 +952,7 @@ function editShortcut(index) {
   });
 }
 
-// Fungsi untuk mereset form kembali ke status "Add"
+// Reset form status to "Add"
 function resetShortcutForm() {
   // Clear form fields
   if (titleInput) titleInput.value = '';
@@ -990,343 +987,7 @@ function resetShortcutForm() {
   }
 }
 
-// Tambahkan CSS untuk Edit dan Cancel Button
-const editStyles = document.createElement('style');
-editStyles.textContent = `
-  .edit-btn {
-    background-color: #007bff;
-    color: white;
-    border: none;
-    padding: 5px 10px;
-    border-radius: 4px;
-    cursor: pointer;
-    margin-right: 5px;
-  }
-  
-  .edit-btn:hover {
-    background-color: #0069d9;
-  }
-  
-  .update-btn {
-    background-color: #28a745 !important;
-  }
-  
-  .cancel-btn {
-    background-color: #6c757d;
-    color: white;
-    border: none;
-    padding: 8px 12px;
-    border-radius: 4px;
-    cursor: pointer;
-    margin-left: 10px;
-  }
-  
-  .cancel-btn:hover {
-    background-color: #5a6268;
-  }
-  
-  th.sortable {
-    cursor: pointer;
-    position: relative;
-    user-select: none;
-  }
-  
-  th.sortable:hover {
-    background-color: #f0f0f0;
-  }
-  
-  th.sort-asc .sort-icon:after {
-    content: " ↓";
-  }
-  
-  th.sort-desc .sort-icon:after {
-    content: " ↑";
-  }
-  
-  .optional-badge {
-    font-size: 0.7em;
-    background-color: #6c757d;
-    color: white;
-    padding: 2px 4px;
-    border-radius: 3px;
-    margin-left: 5px;
-    vertical-align: middle;
-  }
-  
-  .domain-cell {
-    max-width: 150px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  
-  .domain-cell:hover {
-    overflow: visible;
-    white-space: normal;
-    word-break: break-all;
-    background-color: #f8f9fa;
-    position: relative;
-    z-index: 1;
-  }
-`;
-editStyles.textContent += `
-  .domain-restricted {
-    background-color: #f8f9fa;
-    padding: 10px 15px;
-    margin-top: 10px;
-    border-left: 4px solid #007bff;
-    margin-bottom: 15px;
-  }
-  
-  #domainTargeting[readonly] {
-    background-color: #f0f0f0;
-    cursor: not-allowed;
-  }
-  
-  .domain-limit-indicator {
-    margin-top: 10px;
-    font-size: 0.9em;
-  }
-  
-  .limit-warning {
-    color: #dc3545;
-    font-weight: 500;
-  }
-  
-  .limit-ok {
-    color: #28a745;
-  }
-`;
-// Update the CSS style for readonly domain input
-editStyles.textContent += `
-  #domainTargeting[readonly] {
-    background-color: #f0f0f0;
-    cursor: not-allowed;
-    border: 1px solid #ced4da;
-    color: #495057;
-  }
-  
-  /* Add a special style for domain field to show it's auto-filled */
-  #domainTargeting[readonly]:not(:empty) {
-    border-left: 3px solid #28a745;
-  }
-`;
-// Add to your existing CSS
-editStyles.textContent += `
-  #domainTargeting.valid-domain {
-    border-left: 3px solid #28a745;
-    transition: border-left 0.3s;
-  }
-  
-  /* Animation for domain update */
-  @keyframes domain-update {
-    0% { background-color: #e8f5e9; }
-    100% { background-color: #f0f0f0; }
-  }
-  
-  #domainTargeting[readonly]:not(:empty) {
-    animation: domain-update 1s ease-out;
-  }
-`;
-// Add more distinctive animation styles
-editStyles.textContent += `
-  /* More noticeable animation for domain updates */
-  @keyframes domain-pulse {
-    0% { background-color: #e8f5e9; }
-    50% { background-color: #c8e6c9; }
-    100% { background-color: #f0f0f0; }
-  }
-  
-  /* Class to trigger the animation */
-  #domainTargeting.domain-updated {
-    animation: domain-pulse 0.8s ease-out;
-  }
-  
-  /* Make placeholder text more visible */
-  #domainTargeting::placeholder {
-    color: #6c757d;
-    opacity: 1;
-  }
-  
-  /* Highlight domain input when it has focus (although readonly) */
-  #domainTargeting:focus {
-    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
-    border-color: #28a745;
-  }
-`;
-// Add this to your CSS
-editStyles.textContent += `
-  .no-command {
-    color: #6c757d;
-    font-style: italic;
-  }
-`;
-// Add this to your existing CSS styles in the editStyles block
-editStyles.textContent += `
-  #customStatus {
-    margin: 15px 0;
-    padding: 10px;
-    border-radius: 4px;
-    font-weight: 500;
-    transition: all 0.3s ease;
-  }
-  
-  #customStatus:not(:empty) {
-    background-color: #f8f9fa;
-    border-left: 4px solid #28a745;
-    padding: 10px 15px;
-  }
-`;
-// Add CSS for premium features - add to existing editStyles
-editStyles.textContent += `
-  .premium-status-container {
-    margin: 15px 0;
-    padding: 12px 15px;
-    border-radius: 6px;
-    background-color: #f8f9fa;
-  }
-  
-  .premium-badge {
-    display: flex;
-    align-items: center;
-    color: #28a745;
-  }
-  
-  .free-badge {
-    display: flex;
-    align-items: center;
-    color: #6c757d;
-  }
-  
-  .premium-icon, .free-icon {
-    background-color: #28a745;
-    color: white;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-right: 8px;
-    font-weight: bold;
-  }
-  
-  .free-icon {
-    background-color: #6c757d;
-  }
-  
-  .premium-text, .free-text {
-    font-weight: 600;
-    margin-right: 8px;
-  }
-  
-  .premium-feature, .free-feature {
-    color: #6c757d;
-    font-size: 0.9em;
-    margin-right: 10px;
-  }
-  
-  .upgrade-btn {
-    background-color: #fd7e14;
-    color: white;
-    border: none;
-    padding: 4px 8px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.8em;
-    margin-left: 10px;
-  }
-  
-  .upgrade-btn:hover {
-    background-color: #e67211;
-  }
-  
-  .premium-upgrade-modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0,0,0,0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-  }
-  
-  .premium-modal-content {
-    background-color: white;
-    border-radius: 8px;
-    padding: 25px;
-    width: 450px;
-    max-width: 90%;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-  }
-  
-  .premium-benefits {
-    margin: 20px 0;
-  }
-  
-  .premium-benefits ul {
-    padding-left: 20px;
-  }
-  
-  .premium-benefits li {
-    margin-bottom: 8px;
-  }
-  
-  .premium-price {
-    text-align: center;
-    margin: 25px 0;
-  }
-  
-  .price-tag {
-    font-size: 2em;
-    font-weight: bold;
-    color: #28a745;
-  }
-  
-  .price-tag span {
-    font-size: 0.5em;
-    color: #6c757d;
-    display: block;
-    font-weight: normal;
-  }
-  
-  .modal-buttons {
-    display: flex;
-    justify-content: center;
-    gap: 15px;
-    margin-top: 20px;
-  }
-`;
-// Add this to the existing premium CSS
-editStyles.textContent += `
-  .payment-details {
-    margin-top: 20px;
-    text-align: center;
-    color: #6c757d;
-    font-size: 0.8em;
-  }
-  
-  .payment-details small {
-    display: block;
-    margin-bottom: 5px;
-  }
-  
-  .payment-error {
-    color: #dc3545;
-    margin-top: 10px;
-    padding: 8px;
-    border: 1px solid #dc3545;
-    border-radius: 4px;
-    background-color: #f8d7da;
-  }
-`;
-document.head.appendChild(editStyles);
 
-// Add to [options/options.js](options/options.js) after all existing functions
-// Around line 810
 // Add table sorting functionality
 function initTableSorting() {
   const table = document.getElementById('shortcutsTable');
@@ -1546,23 +1207,6 @@ function enhanceDomainField() {
     domainContainer.appendChild(hintDiv);
   }
   
-  // Add CSS for the auto-update indicator
-  const style = document.createElement('style');
-  style.textContent = `
-    .domain-auto-update {
-      display: flex;
-      align-items: center;
-      color: #28a745;
-      margin-top: 5px;
-    }
-    
-    .domain-auto-icon {
-      display: inline-flex;
-      margin-right: 5px;
-      color: #28a745;
-    }
-  `;
-  document.head.appendChild(style);
 }
 
 // Function to check premium status - add this after existing functions

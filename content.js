@@ -663,8 +663,6 @@ function loadShortcuts() {
       
       // Set shortcuts content
       shortcutsContainer.innerHTML = shortcutsHtml;
-
-
     
   });
 }

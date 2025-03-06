@@ -1,0 +1,471 @@
+body {
+    font-family: Arial, sans-serif;
+    padding: 20px;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+  .form-group {
+    margin-bottom: 15px;
+  }
+  label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+  }
+  input[type="url"], input[type="text"] {
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+  }
+  button {
+    background-color: #4285f4;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 10px;
+  }
+  button:hover {
+    background-color: #3367d6;
+  }
+  #status {
+    margin-top: 15px;
+    color: green;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+  }
+  th, td {
+    padding: 8px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+  }
+  th {
+    background-color: #f2f2f2;
+  }
+  .shortcut-note {
+    margin: 20px 0;
+    padding: 15px;
+    background-color: #f8f8f8;
+    border-radius: 4px;
+    font-size: 14px;
+    border-left: 4px solid #4285f4;
+  }
+  .shortcut-info {
+    margin-top: 10px;
+  }
+  .delete-btn {
+    background-color: #dc3545;
+  }
+  .delete-btn:hover {
+    background-color: #bd2130;
+  }
+  .kbd-input {
+    width: 150px;
+    text-align: center;
+    font-family: monospace;
+  }
+  .shortcut-editor {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .shortcut-key {
+    display: inline-block;
+    padding: 3px 5px;
+    font-size: 12px;
+    font-family: monospace;
+    background-color: #f1f1f1;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+  }
+  .shortcut-hint {
+    font-size: 12px;
+    color: #666;
+    margin-top: 4px;
+  }
+  .command-id-input {
+    width: 150px;
+  }
+  .command-id-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .warning {
+    background-color: #fff3cd;
+    border-left-color: #ffc107;
+  }
+  .highlight {
+    background-color: #e8f4fd;
+    border-left-color: #4285f4;
+  }
+  .primary-btn {
+    background-color: #4285f4;
+    color: white;
+    font-weight: bold;
+    padding: 10px 20px;
+    margin: 10px 0;
+  }
+  .status-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 5px;
+  }
+  .status-active {
+    background-color: #4caf50;
+  }
+  .status-inactive {
+    background-color: #f44336;
+  }
+  .info {
+    background-color: #e8f4fd;
+    border-left-color: #2196f3;
+  }
+  .domain-cell {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .domain-cell:hover {
+    overflow: visible;
+    white-space: normal;
+    word-break: break-all;
+    background-color: #f8f9fa;
+    position: relative;
+    z-index: 1;
+  }
+  .edit-btn {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-right: 5px;
+}
+
+.edit-btn:hover {
+  background-color: #0069d9;
+}
+
+.update-btn {
+  background-color: #28a745 !important;
+}
+
+.cancel-btn {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: 10px;
+}
+
+.cancel-btn:hover {
+  background-color: #5a6268;
+}
+
+th.sortable {
+  cursor: pointer;
+  position: relative;
+  user-select: none;
+}
+
+th.sortable:hover {
+  background-color: #f0f0f0;
+}
+
+th.sort-asc .sort-icon:after {
+  content: " ↓";
+}
+
+th.sort-desc .sort-icon:after {
+  content: " ↑";
+}
+
+.optional-badge {
+  font-size: 0.7em;
+  background-color: #6c757d;
+  color: white;
+  padding: 2px 4px;
+  border-radius: 3px;
+  margin-left: 5px;
+  vertical-align: middle;
+}
+
+.domain-cell {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.domain-cell:hover {
+  overflow: visible;
+  white-space: normal;
+  word-break: break-all;
+  background-color: #f8f9fa;
+  position: relative;
+  z-index: 1;
+}
+
+.domain-restricted {
+  background-color: #f8f9fa;
+  padding: 10px 15px;
+  margin-top: 10px;
+  border-left: 4px solid #007bff;
+  margin-bottom: 15px;
+}
+
+#domainTargeting[readonly] {
+  background-color: #f0f0f0;
+  cursor: not-allowed;
+}
+
+.domain-limit-indicator {
+  margin-top: 10px;
+  font-size: 0.9em;
+}
+
+.limit-warning {
+  color: #dc3545;
+  font-weight: 500;
+}
+
+.limit-ok {
+  color: #28a745;
+}
+
+#domainTargeting[readonly] {
+  background-color: #f0f0f0;
+  cursor: not-allowed;
+  border: 1px solid #ced4da;
+  color: #495057;
+}
+
+/* Add a special style for domain field to show it's auto-filled */
+#domainTargeting[readonly]:not(:empty) {
+  border-left: 3px solid #28a745;
+}
+
+#domainTargeting.valid-domain {
+  border-left: 3px solid #28a745;
+  transition: border-left 0.3s;
+}
+
+/* Animation for domain update */
+@keyframes domain-update {
+  0% { background-color: #e8f5e9; }
+  100% { background-color: #f0f0f0; }
+}
+
+#domainTargeting[readonly]:not(:empty) {
+  animation: domain-update 1s ease-out;
+}
+
+/* More noticeable animation for domain updates */
+@keyframes domain-pulse {
+  0% { background-color: #e8f5e9; }
+  50% { background-color: #c8e6c9; }
+  100% { background-color: #f0f0f0; }
+}
+
+/* Class to trigger the animation */
+#domainTargeting.domain-updated {
+  animation: domain-pulse 0.8s ease-out;
+}
+
+/* Make placeholder text more visible */
+#domainTargeting::placeholder {
+  color: #6c757d;
+  opacity: 1;
+}
+
+/* Highlight domain input when it has focus (although readonly) */
+#domainTargeting:focus {
+  box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+  border-color: #28a745;
+}
+
+.no-command {
+  color: #6c757d;
+  font-style: italic;
+}
+
+#customStatus {
+  margin: 15px 0;
+  padding: 10px;
+  border-radius: 4px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+#customStatus:not(:empty) {
+  background-color: #f8f9fa;
+  border-left: 4px solid #28a745;
+  padding: 10px 15px;
+}
+
+.premium-status-container {
+  margin: 15px 0;
+  padding: 12px 15px;
+  border-radius: 6px;
+  background-color: #f8f9fa;
+}
+
+.premium-badge {
+  display: flex;
+  align-items: center;
+  color: #28a745;
+}
+
+.free-badge {
+  display: flex;
+  align-items: center;
+  color: #6c757d;
+}
+
+.premium-icon, .free-icon {
+  background-color: #28a745;
+  color: white;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+  font-weight: bold;
+}
+
+.free-icon {
+  background-color: #6c757d;
+}
+
+.premium-text, .free-text {
+  font-weight: 600;
+  margin-right: 8px;
+}
+
+.premium-feature, .free-feature {
+  color: #6c757d;
+  font-size: 0.9em;
+  margin-right: 10px;
+}
+
+.upgrade-btn {
+  background-color: #fd7e14;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8em;
+  margin-left: 10px;
+}
+
+.upgrade-btn:hover {
+  background-color: #e67211;
+}
+
+.premium-upgrade-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.premium-modal-content {
+  background-color: white;
+  border-radius: 8px;
+  padding: 25px;
+  width: 450px;
+  max-width: 90%;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+.premium-benefits {
+  margin: 20px 0;
+}
+
+.premium-benefits ul {
+  padding-left: 20px;
+}
+
+.premium-benefits li {
+  margin-bottom: 8px;
+}
+
+.premium-price {
+  text-align: center;
+  margin: 25px 0;
+}
+
+.price-tag {
+  font-size: 2em;
+  font-weight: bold;
+  color: #28a745;
+}
+
+.price-tag span {
+  font-size: 0.5em;
+  color: #6c757d;
+  display: block;
+  font-weight: normal;
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.payment-details {
+  margin-top: 20px;
+  text-align: center;
+  color: #6c757d;
+  font-size: 0.8em;
+}
+
+.payment-details small {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.payment-error {
+  color: #dc3545;
+  margin-top: 10px;
+  padding: 8px;
+  border: 1px solid #dc3545;
+  border-radius: 4px;
+  background-color: #f8d7da;
+}
+
+    .domain-auto-update {
+    display: flex;
+    align-items: center;
+    color: #28a745;
+    margin-top: 5px;
+  }
+  
+  .domain-auto-icon {
+    display: inline-flex;
+    margin-right: 5px;
+    color: #28a745;
+  }
+  
