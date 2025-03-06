@@ -6,7 +6,7 @@
   "background": {
     "service_worker": "background.js"
   },
-  "permissions": ["storage", "commands", "activeTab", "tabs", "notifications"],
+  "permissions": ["storage", "commands", "activeTab", "tabs", "notifications", "identity"],
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
@@ -69,5 +69,9 @@
     "shortcut-10": {
       "description": "Keyboard Shortcut 10"
     }
+  },
+  "oauth2": {
+    "client_id": "YOUR_CLIENT_ID",
+    "scopes": ["https://www.googleapis.com/auth/chromewebstore.readonly"]
   }
 }

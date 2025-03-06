@@ -50,6 +50,13 @@ const AVAILABLE_COMMANDS = [
     'shortcut-10'
   ];
 
+// Add near the top of options.js after existing constants
+const FREE_USER_LIMIT = 3; // Free users can only add 3 shortcuts per domain
+let isPremiumUser = false; // Default to free user
+
+// Add this constant near the top of options.js
+const EXTENSION_ID = chrome.runtime.id; // Gets the current extension ID automatically
+
 // Function to get next available command Id
 function getNextAvailableCommandId() {
   return new Promise((resolve) => {
@@ -105,8 +112,14 @@ if (defaultTabBtn && customTabBtn) {
 }
 
 // Pisahkan inisialisasi UI dan pengisian data
-document.addEventListener('DOMContentLoaded', () => {
-  // Inisialisasi UI
+document.addEventListener('DOMContentLoaded', async () => {
+  // Check premium status first
+  await checkPremiumStatus();
+  
+  // Display premium status in UI
+  displayPremiumStatus();
+  
+  // Initialize UI
   initializeUI();
   
   // Debug commands
@@ -114,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Load data
   loadData();
-  });
+});
 
 // Inisialisasi UI elements
 function initializeUI() {
@@ -243,6 +256,11 @@ if (shortcutForm) {
   });
 }
 
+// Add this before processFormSubmission function
+function getShortcutLimit() {
+  return isPremiumUser ? Infinity : FREE_USER_LIMIT;
+}
+
 // Function to handle the form processing - update the relevant parts
 function processFormSubmission(title, url, commandId, isUpdate, editIndex) {
   // Validasi inputs
@@ -297,10 +315,28 @@ function processFormSubmission(title, url, commandId, isUpdate, editIndex) {
       return s.domains && s.domains.includes(currentDomain);
     }).length;
     
+    // Get the applicable limit based on premium status
+    const shortcutLimit = getShortcutLimit();
+    
     // Check if limit reached
-    if (domainShortcutsCount >= 3) {
-      customStatus.textContent = `Maximum limit of 3 shortcuts per domain (${currentDomain}) reached. Please delete some shortcuts first.`; 
+    if (domainShortcutsCount >= shortcutLimit) {
+      customStatus.innerHTML = `
+        <div>Maximum limit of ${shortcutLimit} shortcuts per domain (${currentDomain}) reached.</div>
+        ${!isPremiumUser ? `<div style="margin-top:8px;">
+          <strong>Need more?</strong> <a href="#" id="upgradeLink">Upgrade to Premium</a> for unlimited shortcuts per domain.
+        </div>` : ''}
+      `;
       customStatus.style.color = "red";
+      
+      // Add event listener to upgrade link if shown
+      const upgradeLink = document.getElementById('upgradeLink');
+      if (upgradeLink) {
+        upgradeLink.addEventListener('click', (e) => {
+          e.preventDefault();
+          showPremiumUpgradeModal();
+        });
+      }
+      
       return;
     }
     
@@ -481,11 +517,17 @@ function loadCustomShortcuts(sortColumn = 'domain', sortDirection = 'asc') {
           // Add domain header row
           const headerRow = document.createElement('tr');
           headerRow.className = 'domain-header';
+
+          // Get the applicable limit based on premium status
+          const shortcutLimit = getShortcutLimit();
+          const limitText = isPremiumUser ? 'unlimited' : `${domainCount}/${shortcutLimit}`;
+          const limitReached = !isPremiumUser && domainCount >= shortcutLimit;
+
           headerRow.innerHTML = `
             <td colspan="6" class="domain-header-cell">
               <strong>Domain: ${domain}</strong>
               <span class="domain-count">
-                (${domainCount}/3 shortcuts${domainCount >= 3 ? ' - LIMIT REACHED' : ''}) // Ubah dari 5 ke 3
+                (${limitText} shortcuts${limitReached ? ' - LIMIT REACHED' : ''})
               </span>
             </td>
           `;
@@ -1135,6 +1177,152 @@ editStyles.textContent += `
     padding: 10px 15px;
   }
 `;
+// Add CSS for premium features - add to existing editStyles
+editStyles.textContent += `
+  .premium-status-container {
+    margin: 15px 0;
+    padding: 12px 15px;
+    border-radius: 6px;
+    background-color: #f8f9fa;
+  }
+  
+  .premium-badge {
+    display: flex;
+    align-items: center;
+    color: #28a745;
+  }
+  
+  .free-badge {
+    display: flex;
+    align-items: center;
+    color: #6c757d;
+  }
+  
+  .premium-icon, .free-icon {
+    background-color: #28a745;
+    color: white;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 8px;
+    font-weight: bold;
+  }
+  
+  .free-icon {
+    background-color: #6c757d;
+  }
+  
+  .premium-text, .free-text {
+    font-weight: 600;
+    margin-right: 8px;
+  }
+  
+  .premium-feature, .free-feature {
+    color: #6c757d;
+    font-size: 0.9em;
+    margin-right: 10px;
+  }
+  
+  .upgrade-btn {
+    background-color: #fd7e14;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8em;
+    margin-left: 10px;
+  }
+  
+  .upgrade-btn:hover {
+    background-color: #e67211;
+  }
+  
+  .premium-upgrade-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+  
+  .premium-modal-content {
+    background-color: white;
+    border-radius: 8px;
+    padding: 25px;
+    width: 450px;
+    max-width: 90%;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  }
+  
+  .premium-benefits {
+    margin: 20px 0;
+  }
+  
+  .premium-benefits ul {
+    padding-left: 20px;
+  }
+  
+  .premium-benefits li {
+    margin-bottom: 8px;
+  }
+  
+  .premium-price {
+    text-align: center;
+    margin: 25px 0;
+  }
+  
+  .price-tag {
+    font-size: 2em;
+    font-weight: bold;
+    color: #28a745;
+  }
+  
+  .price-tag span {
+    font-size: 0.5em;
+    color: #6c757d;
+    display: block;
+    font-weight: normal;
+  }
+  
+  .modal-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 20px;
+  }
+`;
+// Add this to the existing premium CSS
+editStyles.textContent += `
+  .payment-details {
+    margin-top: 20px;
+    text-align: center;
+    color: #6c757d;
+    font-size: 0.8em;
+  }
+  
+  .payment-details small {
+    display: block;
+    margin-bottom: 5px;
+  }
+  
+  .payment-error {
+    color: #dc3545;
+    margin-top: 10px;
+    padding: 8px;
+    border: 1px solid #dc3545;
+    border-radius: 4px;
+    background-color: #f8d7da;
+  }
+`;
 document.head.appendChild(editStyles);
 
 // Add to [options/options.js](options/options.js) after all existing functions
@@ -1375,4 +1563,175 @@ function enhanceDomainField() {
     }
   `;
   document.head.appendChild(style);
+}
+
+// Function to check premium status - add this after existing functions
+function checkPremiumStatus() {
+  return new Promise((resolve) => {
+    chrome.storage.sync.get(['premiumStatus'], (result) => {
+      isPremiumUser = result.premiumStatus && result.premiumStatus.active === true;
+      resolve(isPremiumUser);
+    });
+  });
+}
+
+// Add this function to display premium status
+function displayPremiumStatus() {
+  // Create or update premium status indicator
+  let statusContainer = document.querySelector('.premium-status-container');
+  
+  if (!statusContainer) {
+    // Create the container if it doesn't exist
+    statusContainer = document.createElement('div');
+    statusContainer.className = 'premium-status-container';
+    
+    // Insert after h1
+    const h1 = document.querySelector('h1');
+    if (h1 && h1.parentNode) {
+      h1.parentNode.insertBefore(statusContainer, h1.nextSibling);
+    } else {
+      document.body.insertBefore(statusContainer, document.body.firstChild);
+    }
+  }
+  
+  // Update status container content
+  statusContainer.innerHTML = isPremiumUser ? 
+    `<div class="premium-badge">
+       <span class="premium-icon">✓</span>
+       <span class="premium-text">Premium User</span>
+       <span class="premium-feature">Unlimited shortcuts per domain</span>
+     </div>` : 
+    `<div class="free-badge">
+       <span class="free-icon">ℹ</span>
+       <span class="free-text">Free User</span>
+       <span class="free-feature">Limited to ${FREE_USER_LIMIT} shortcuts per domain</span>
+       <button id="upgradeToPremium" class="upgrade-btn">Upgrade to Premium</button>
+     </div>`;
+     
+  // Add event listener to upgrade button
+  const upgradeBtn = document.getElementById('upgradeToPremium');
+  if (upgradeBtn) {
+    upgradeBtn.addEventListener('click', showPremiumUpgradeModal);
+  }
+}
+
+// Add this function to show premium upgrade modal
+function showPremiumUpgradeModal() {
+  // Create modal overlay
+  const modal = document.createElement('div');
+  modal.className = 'premium-upgrade-modal';
+  modal.innerHTML = `
+    <div class="premium-modal-content">
+      <h2>Upgrade to Premium</h2>
+      <p>Unlock unlimited shortcuts per domain with our Premium plan!</p>
+      
+      <div class="premium-benefits">
+        <h3>Premium Benefits:</h3>
+        <ul>
+          <li><strong>Unlimited shortcuts</strong> per domain</li>
+          <li><strong>Priority support</strong> for any issues</li>
+          <li><strong>Early access</strong> to new features</li>
+        </ul>
+      </div>
+      
+      <div class="premium-price">
+        <p class="price-tag">$4.99 <span>one-time payment</span></p>
+      </div>
+      
+      <div class="modal-buttons">
+        <button id="activatePremium" class="primary-btn">Purchase Premium</button>
+        <button id="closeModal" class="cancel-btn">Maybe Later</button>
+      </div>
+      
+      <div class="payment-details">
+        <small>Extension ID: ${EXTENSION_ID}</small>
+        <small>Payment processed securely through Chrome Web Store</small>
+      </div>
+    </div>
+  `;
+  
+  // Add modal to body
+  document.body.appendChild(modal);
+  
+  // Add event listeners
+  document.getElementById('activatePremium').addEventListener('click', () => {
+    // Implement Chrome Web Store payment
+    initiatePaymentFlow();
+  });
+  
+  document.getElementById('closeModal').addEventListener('click', closeModal);
+  
+  function closeModal() {
+    document.body.removeChild(modal);
+  }
+}
+
+// Add this function to initiate the Chrome Web Store payment flow
+function initiatePaymentFlow() {
+  // This uses the Chrome Web Store payments API
+  google.payments.inapp.buy({
+    parameters: {'env': 'prod'},
+    sku: 'premium_upgrade',
+    success: paymentSuccess,
+    failure: paymentFailure
+  });
+}
+
+// Handle successful payment
+function paymentSuccess(purchaseResponse) {
+  console.log('Payment successful:', purchaseResponse);
+  
+  // Store the license information
+  chrome.storage.sync.set({
+    'premiumStatus': {
+      active: true,
+      activatedOn: new Date().toISOString(),
+      orderId: purchaseResponse.orderId,
+      license: purchaseResponse.jwt
+    }
+  }, () => {
+    // Update local state
+    isPremiumUser = true;
+    
+    // Update UI
+    displayPremiumStatus();
+    
+    // Reload shortcuts to update domain limits
+    loadCustomShortcuts();
+    
+    // Show success message
+    customStatus.innerHTML = `
+      <div>Premium activated successfully!</div>
+      <div style="margin-top:8px;">
+        <strong>Thank you!</strong> You now have unlimited shortcuts per domain.
+      </div>
+    `;
+    customStatus.style.color = "green";
+    
+    // Close modal if still open
+    const modal = document.querySelector('.premium-upgrade-modal');
+    if (modal && modal.parentNode) {
+      modal.parentNode.removeChild(modal);
+    }
+    
+    setTimeout(() => {
+      customStatus.textContent = "";
+    }, 4000);
+  });
+}
+
+// Handle payment failure
+function paymentFailure(error) {
+  console.error('Payment failed:', error);
+  
+  // Show error message
+  const errorContainer = document.querySelector('.payment-details');
+  if (errorContainer) {
+    errorContainer.innerHTML = `
+      <div class="payment-error">
+        Payment failed: ${error.response?.errorType || 'Unknown error'}.
+        Please try again or contact support.
+      </div>
+    `;
+  }
 }

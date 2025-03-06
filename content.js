@@ -263,6 +263,19 @@ function createShortcutPanel() {
     </div>
   `;
 
+  // Check premium status and add badge if premium
+  isPremiumUser().then(premium => {
+    if (premium) {
+      const header = panelHeader.querySelector('h3');
+      if (header) {
+        header.innerHTML = `
+          Shortcuts for this site
+          <span class="premium-badge-small">PRO</span>
+        `;
+      }
+    }
+  });
+
   // Create shortcuts container
   const shortcutsContainer = document.createElement('div');
   shortcutsContainer.id = 'shortcut-ext-shortcuts';
@@ -713,3 +726,12 @@ document.addEventListener('keydown', (e) => {
     }
   }
 });
+
+// First, get premium status before creating the panel
+function isPremiumUser() {
+  return new Promise(resolve => {
+    chrome.storage.sync.get(['premiumStatus'], (result) => {
+      resolve(result.premiumStatus && result.premiumStatus.active === true);
+    });
+  });
+}

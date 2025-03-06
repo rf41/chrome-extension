@@ -269,6 +269,28 @@
   z-index: 1;
 }
 
+/* Premium badge styles for the panel */
+.premium-badge-small {
+  display: inline-block;
+  background-color: gold;
+  color: #333;
+  font-size: 9px;
+  padding: 2px 4px;
+  margin-left: 5px;
+  border-radius: 3px;
+  font-weight: 700;
+  vertical-align: middle;
+  text-transform: uppercase;
+}
+
+/* Update styles for premium limit indicators */
+.domain-header .domain-count {
+  display: inline-block;
+  margin-left: 8px;
+  color: #666;
+  font-size: 12px;
+}
+
 /* Shortcut link */
 .shortcut-ext-link {
   display: flex !important;
