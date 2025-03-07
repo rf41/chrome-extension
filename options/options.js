@@ -125,6 +125,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Load data
   loadData();
+  
+  // Initialize collapsible sections
+  initCollapsibleSections();
+  
+  // Add license management section
+  addLicenseManagementSection();
 });
 
 // Initialization UI elements
@@ -161,6 +167,9 @@ function initializeUI() {
   
   // Ensure domain field has proper appearance
   createDomainField();
+  
+  // Add license management section
+  addLicenseManagementSection();
 }
 
 // Load data from storage
@@ -525,7 +534,7 @@ function loadCustomShortcuts(sortColumn = 'domain', sortDirection = 'asc') {
             <td colspan="6" class="domain-header-cell">
               <strong>Domain: ${domain}</strong>
               <span class="domain-count">
-                (${limitText} shortcuts${limitReached ? ' - LIMIT REACHED' : ''})
+                (${limitText} shortcuts${limitReached ? ' - <font color=red>LIMIT REACHED</font>' : ''})
               </span>
             </td>
           `;
@@ -619,7 +628,6 @@ function deleteShortcut(index) {
 
 // Add a function to periodically check and display current shortcut settings
 
-// Add this to your existing code
 function updateShortcutDisplayTable() {
   // Only Chrome 93+ includes the commands.getAll API
   if (!chrome.commands || !chrome.commands.getAll) {
@@ -1213,7 +1221,18 @@ function enhanceDomainField() {
 function checkPremiumStatus() {
   return new Promise((resolve) => {
     chrome.storage.sync.get(['premiumStatus'], (result) => {
-      isPremiumUser = result.premiumStatus && result.premiumStatus.active === true;
+      if (result.premiumStatus && result.premiumStatus.active === true) {
+        // If there's an expiration date, check if the license is still valid
+        if (result.premiumStatus.expiresOn) {
+          const now = new Date();
+          const expiryDate = new Date(result.premiumStatus.expiresOn);
+          isPremiumUser = now <= expiryDate;
+        } else {
+          isPremiumUser = true;
+        }
+      } else {
+        isPremiumUser = false;
+      }
       resolve(isPremiumUser);
     });
   });
@@ -1238,25 +1257,45 @@ function displayPremiumStatus() {
     }
   }
   
-  // Update status container content
-  statusContainer.innerHTML = isPremiumUser ? 
-    `<div class="premium-badge">
-       <span class="premium-icon">✓</span>
-       <span class="premium-text">Premium User</span>
-       <span class="premium-feature">Unlimited shortcuts per domain</span>
-     </div>` : 
-    `<div class="free-badge">
-       <span class="free-icon">ℹ</span>
-       <span class="free-text">Free User</span>
-       <span class="free-feature">Limited to ${FREE_USER_LIMIT} shortcuts per domain</span>
-       <button id="upgradeToPremium" class="upgrade-btn">Upgrade to Premium</button>
-     </div>`;
-     
-  // Add event listener to upgrade button
-  const upgradeBtn = document.getElementById('upgradeToPremium');
-  if (upgradeBtn) {
-    upgradeBtn.addEventListener('click', showPremiumUpgradeModal);
-  }
+  chrome.storage.sync.get(['premiumStatus'], (result) => {
+    const premiumData = result.premiumStatus || {};
+    
+    // Format the activation date if available
+    let activatedText = '';
+    if (premiumData.activatedOn) {
+      const activationDate = new Date(premiumData.activatedOn);
+      activatedText = `Activated on: ${activationDate.toLocaleDateString()}`;
+    }
+    
+    // Format the expiration date if available
+    let expiresText = '';
+    if (premiumData.expiresOn) {
+      const expiryDate = new Date(premiumData.expiresOn);
+      expiresText = `Expires: ${expiryDate.toLocaleDateString()}`;
+    }
+    
+    // Update status container content
+    statusContainer.innerHTML = isPremiumUser ? 
+      `<div class="premium-badge">
+         <span class="premium-icon">✓</span>
+         <span class="premium-text">Premium User</span>
+         <span class="premium-feature">Unlimited shortcuts per domain</span>
+         ${activatedText ? `<span style="margin-left: 10px; font-size: 0.8em;">${activatedText}</span>` : ''}
+         ${expiresText ? `<span style="margin-left: 10px; font-size: 0.8em;">${expiresText}</span>` : ''}
+       </div>` : 
+      `<div class="free-badge">
+         <span class="free-icon">ℹ</span>
+         <span class="free-text">Free User</span>
+         <span class="free-feature">Limited to ${FREE_USER_LIMIT} shortcuts per domain</span>
+         <button id="upgradeToPremium" class="upgrade-btn">Upgrade to Premium</button>
+       </div>`;
+       
+    // Add event listener to upgrade button
+    const upgradeBtn = document.getElementById('upgradeToPremium');
+    if (upgradeBtn) {
+      upgradeBtn.addEventListener('click', showPremiumUpgradeModal);
+    }
+  });
 }
 
 // Add this function to show premium upgrade modal
@@ -1283,13 +1322,21 @@ function showPremiumUpgradeModal() {
       </div>
       
       <div class="modal-buttons">
-        <button id="activatePremium" class="primary-btn">Purchase Premium</button>
+        <a href="https://ridwancard.my.id/checkout/?add-to-cart=62" 
+           target="_blank" id="buyPremium" class="primary-btn">Purchase Premium</a>
+        <button id="activateLicense" class="primary-btn">Already purchased? Activate License</button>
         <button id="closeModal" class="cancel-btn">Maybe Later</button>
       </div>
       
-      <div class="payment-details">
-        <small>Extension ID: ${EXTENSION_ID}</small>
-        <small>Payment processed securely through Chrome Web Store</small>
+      <div id="licenseActivationForm" style="display:none; margin-top: 20px;">
+        <h3>Enter Your License Key</h3>
+        <p>You should have received your license key via email after purchase.</p>
+        <div style="margin: 15px 0;">
+          <input type="text" id="licenseKeyInput" placeholder="Enter your license key" 
+                 style="width: 100%; padding: 8px; margin-bottom: 10px;">
+          <button id="verifyLicense" class="primary-btn" style="width: 100%;">Activate License</button>
+        </div>
+        <div id="licenseMessage" style="margin-top: 10px;"></div>
       </div>
     </div>
   `;
@@ -1298,9 +1345,20 @@ function showPremiumUpgradeModal() {
   document.body.appendChild(modal);
   
   // Add event listeners
-  document.getElementById('activatePremium').addEventListener('click', () => {
-    // Implement Chrome Web Store payment
-    initiatePaymentFlow();
+  document.getElementById('activateLicense').addEventListener('click', () => {
+    document.getElementById('licenseActivationForm').style.display = 'block';
+    document.getElementById('activateLicense').style.display = 'none';
+  });
+  
+  document.getElementById('verifyLicense').addEventListener('click', () => {
+    const licenseKey = document.getElementById('licenseKeyInput').value.trim();
+    if (!licenseKey) {
+      document.getElementById('licenseMessage').innerHTML = 
+        '<p style="color: red;">Please enter a license key</p>';
+      return;
+    }
+    
+    verifyLicenseKey(licenseKey);
   });
   
   document.getElementById('closeModal').addEventListener('click', closeModal);
@@ -1310,72 +1368,608 @@ function showPremiumUpgradeModal() {
   }
 }
 
-// Add this function to initiate the Chrome Web Store payment flow
-function initiatePaymentFlow() {
-  // This uses the Chrome Web Store payments API
-  google.payments.inapp.buy({
-    parameters: {'env': 'prod'},
-    sku: 'premium_upgrade',
-    success: paymentSuccess,
-    failure: paymentFailure
+// Updated function to use the official License Manager for WooCommerce REST API
+function verifyLicenseKey(licenseKey) {
+  const licenseMessage = document.getElementById('licenseMessage');
+  licenseMessage.innerHTML = '<p style="color: blue;">Verifying license...</p>';
+  
+  // Get the extension ID for identifying which product this is
+  const extensionId = chrome.runtime.id;
+  
+  // Use the official License Manager for WooCommerce REST API
+  // The license key is part of the URL path for activation
+  const apiUrl = `https://ridwancard.my.id/wp-json/lmfwc/v2/licenses/activate/${licenseKey}`;
+  const consumerKey = 'ck_9eeb9517833188c72cdf4d94dac63f6cbc18ba3c';
+  const consumerSecret = 'cs_6ac366de7eae5804493d735e58d08b85db8944cb';
+  
+  // Basic authentication for WooCommerce API
+  const credentials = btoa(`${consumerKey}:${consumerSecret}`);
+  
+  fetch(apiUrl, {
+    method: 'GET', // Changed to GET since we're not sending body data
+    headers: {
+      'Authorization': `Basic ${credentials}`,
+      'Content-Type': 'application/json'
+    }
+  })
+  .then(response => {
+    // First check if the response is OK
+    if (!response.ok) {
+      throw new Error(`Server responded with status: ${response.status}`);
+    }
+    // Try to parse the response as JSON
+    return response.text().then(text => {
+      try {
+        // Check if the response contains HTML error messages
+        if (text.includes('<b>Warning</b>') || text.includes('<br />')) {
+          // Extract the JSON part from the response if possible
+          const jsonMatch = text.match(/(\{.*\})/);
+          if (jsonMatch && jsonMatch[1]) {
+            return JSON.parse(jsonMatch[1]);
+          } else {
+            throw new Error('Server returned HTML error with no valid JSON');
+          }
+        }
+        // If no HTML error, parse the text as JSON
+        return JSON.parse(text);
+      } catch (e) {
+        console.error('Failed to parse response:', e);
+        console.error('Response text:', text);
+        throw new Error('Failed to parse server response');
+      }
+    });
+  })
+  .then(data => {
+    if (data.success === true) {
+      // License is valid and activated
+      licenseMessage.innerHTML = '<p style="color: green;">License verified and activated successfully!</p>';
+      
+      // Store the license information from the response
+      chrome.storage.sync.set({
+        'premiumStatus': {
+          active: true,
+          activatedOn: new Date().toISOString(),
+          licenseKey: licenseKey,
+          expiresOn: data.data?.expiresAt || null,
+          timesActivated: data.data?.timesActivated || 0,
+          timesActivatedMax: data.data?.timesActivatedMax || 1,
+          remainingActivations: data.data?.remainingActivations || 1
+        }
+      }, () => {
+        // Update local state
+        isPremiumUser = true;
+        
+        // Update UI
+        displayPremiumStatus();
+        
+        // Reload shortcuts to update domain limits
+        loadCustomShortcuts();
+        
+        // Show success message and close modal after delay
+        setTimeout(() => {
+          // Close modal
+          const modal = document.querySelector('.premium-upgrade-modal');
+          if (modal && modal.parentNode) {
+            modal.parentNode.removeChild(modal);
+          }
+          
+          // Show success message
+          customStatus.innerHTML = `
+            <div>Premium activated successfully!</div>
+            <div style="margin-top:8px;">
+              <strong>Thank you!</strong> You now have unlimited shortcuts per domain.
+            </div>
+          `;
+          customStatus.style.color = "green";
+          
+          setTimeout(() => {
+            customStatus.textContent = "";
+          }, 4000);
+        }, 2000);
+      });
+    } else {
+      // License is invalid
+      licenseMessage.innerHTML = 
+        `<p style="color: red;">Invalid license key: ${data.message || 'Please check and try again'}</p>`;
+    }
+  })
+  .catch(error => {
+    console.error('License verification error:', error);
+    licenseMessage.innerHTML = 
+      '<p style="color: red;">Error connecting to license server. Please try again later.</p>';
   });
 }
 
-// Handle successful payment
-function paymentSuccess(purchaseResponse) {
-  console.log('Payment successful:', purchaseResponse);
-  
-  // Store the license information
-  chrome.storage.sync.set({
-    'premiumStatus': {
-      active: true,
-      activatedOn: new Date().toISOString(),
-      orderId: purchaseResponse.orderId,
-      license: purchaseResponse.jwt
-    }
-  }, () => {
-    // Update local state
-    isPremiumUser = true;
-    
-    // Update UI
-    displayPremiumStatus();
-    
-    // Reload shortcuts to update domain limits
-    loadCustomShortcuts();
-    
-    // Show success message
-    customStatus.innerHTML = `
-      <div>Premium activated successfully!</div>
-      <div style="margin-top:8px;">
-        <strong>Thank you!</strong> You now have unlimited shortcuts per domain.
-      </div>
-    `;
-    customStatus.style.color = "green";
-    
-    // Close modal if still open
-    const modal = document.querySelector('.premium-upgrade-modal');
-    if (modal && modal.parentNode) {
-      modal.parentNode.removeChild(modal);
-    }
-    
-    setTimeout(() => {
-      customStatus.textContent = "";
-    }, 4000);
-  });
-}
+//open shortcut setting page in Chrome
+document.getElementById('openShortcutsPage').addEventListener('click', () => {
+  chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
+});
 
-// Handle payment failure
-function paymentFailure(error) {
-  console.error('Payment failed:', error);
+function initCollapsibleSections() {
+  const collapsibles = document.querySelectorAll('.collapsible-header');
   
-  // Show error message
-  const errorContainer = document.querySelector('.payment-details');
-  if (errorContainer) {
-    errorContainer.innerHTML = `
-      <div class="payment-error">
-        Payment failed: ${error.response?.errorType || 'Unknown error'}.
-        Please try again or contact support.
-      </div>
-    `;
+  collapsibles.forEach(collapsible => {
+    collapsible.addEventListener('click', function() {
+      // Toggle active class on parent container
+      this.parentElement.classList.toggle('active');
+    });
+  });
+  
+  // Open the first section by default
+  if (collapsibles.length > 0) {
+    collapsibles[0].parentElement.classList.add('active');
   }
+}
+
+// Update the showShortcutConfigGuide function in options.js
+
+function showShortcutConfigGuide() {
+  const guideContent = `
+    <div class="guide-container">
+      <h2>📘 Complete Guide: Getting The Most From Quick Site Shortcuts</h2>
+      
+      <div class="guide-section">
+        <h3>Detailed Setup</h3>
+        <ol>
+          <li><strong>Adding Keyboard Shortcuts:</strong>
+            <ul>
+              <li><strong>Setting up Chrome-level Keyboard Shortcuts:</strong></li>
+              <li>You can configure up to 10 keyboard combinations for this extension</li>
+              <li>Go to Chrome's Extensions Shortcuts page by:
+                  <ul>
+                      <li>Opening a new tab and typing: <code>chrome://extensions/shortcuts</code></li>
+                      <li>Or from Chrome menu: Settings → Extensions → ⋮ (menu) → Keyboard shortcuts</li>
+                  </ul>
+              </li>
+              <li>Find "Quick Site Shortcuts" in the list of extensions</li>
+              <li>For each command you want to use:
+                  <ul>
+                      <li>Click the empty input box next to the command name</li>
+                      <li>Press your desired key combination (e.g., <code>Alt+Shift+G</code>)</li>
+                      <li>Chrome will save it automatically</li>
+                  </ul>
+              </li>
+              <li>Recommended combinations: <code>Alt+Shift+[letter]</code> or <code>Ctrl+Shift+[number]</code></li>
+              <li>To edit a shortcut: Click the input box and press a new combination</li>
+              <li>To remove a shortcut: Click the input box and press <code>Backspace</code></li>
+              <li>These shortcuts will work globally across all Chrome windows</li>                            
+            </ul>
+          </li>
+          <li><strong>Add Your First Shortcut:</strong>
+            <ul>
+              <li>Enter a descriptive title for your shortcut (e.g., "Gmail Inbox")</li>
+            <li>Enter the complete URL you want to open (e.g., "https://mail.google.com")</li>
+            <li>Select a Command ID from the dropdown to assign a keyboard shortcut</li>
+            <li>The target domain will be automatically detected from the URL you provided</li>
+            <li>Click the "Add Custom Shortcut" button to save your new shortcut</li>
+            </ul>
+          </li>
+          <li><strong>Using Your Shortcuts:</strong>
+            <ul>
+              <li>Visit the website you've added shortcuts for</li>
+              <li>A floating panel will appear on the screen</li>
+              <li>You can freely move this panel anywhere on the screen as needed</li>
+              <li>Click on the panel to open the list of shortcuts you've added</li>
+              <li>Click on any shortcut to access it</li>
+            </ul>
+          </li>
+        </ol>
+      </div>
+      
+      <div class="guide-section">
+        <h3>Keyboard Shortcut Tips</h3>
+        <ul>
+          <li>Choose memorable combinations like first letters of the site name</li>
+          <li>For frequently used sites, assign simple combinations</li>
+          <li>The same keyboard shortcut works across all domains</li>
+          <li>If a keyboard shortcut conflicts with browser or website shortcuts, try a different combination</li>
+        </ul>
+      </div>
+      
+    </div>
+  `;
+  
+  // Show the guide in a modal dialog
+  showModal('Shortcut Configuration Guide', guideContent);
+}
+
+// Add this function to show modals - the missing piece!
+function showModal(title, content) {
+  // Create modal overlay
+  const modal = document.createElement('div');
+  modal.className = 'guide-modal';
+  
+  // Create modal content
+  modal.innerHTML = `
+    <div class="guide-modal-content">
+      <div class="guide-modal-header">
+        <h2>${title}</h2>
+        <button class="guide-close-btn">&times;</button>
+      </div>
+      
+      <div class="guide-modal-body">
+        ${content}
+      </div>
+    </div>
+  `;
+  
+  // Add to document
+  document.body.appendChild(modal);
+  
+  // Close button functionality
+  const closeBtn = modal.querySelector('.guide-close-btn');
+  closeBtn.addEventListener('click', () => {
+    document.body.removeChild(modal);
+  });
+  
+  // Close when clicking outside
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      document.body.removeChild(modal);
+    }
+  });
+}
+
+// Add this function to your options.js
+function addLicenseManagementSection() {
+  const settingsContainer = document.querySelector('.shortcut-note.highlight') || document.body;
+  
+  // Create the license management section if it doesn't exist
+  if (!document.getElementById('licenseManagementSection')) {
+    const licenseSection = document.createElement('div');
+    licenseSection.id = 'licenseManagementSection';
+    licenseSection.className = 'collapsible-container';
+    licenseSection.innerHTML = `
+      <button class="collapsible-header">
+        <span class="collapsible-icon">▶</span>
+        <h3>🔑 License Management</h3>
+      </button>
+      <div class="collapsible-content" style="display: none;">
+        <div id="licenseDetails">
+          Loading license information...
+        </div>
+        <div id="licenseActionButtons" style="margin-top: 15px; display: none;">
+          <button id="refreshLicenseBtn" class="primary-btn">Refresh License</button>
+          <button id="deactivateLicenseBtn" class="delete-btn">Deactivate License</button>
+        </div>
+      </div>
+    `;
+    
+    // Insert before the form
+    const form = document.getElementById('shortcutForm');
+    if (form && form.parentNode) {
+      form.parentNode.insertBefore(licenseSection, form);
+    } else {
+      settingsContainer.appendChild(licenseSection);
+    }
+    
+    // Initialize collapsible behavior 
+    const header = licenseSection.querySelector('.collapsible-header');
+    const content = licenseSection.querySelector('.collapsible-content');
+    const icon = licenseSection.querySelector('.collapsible-icon');
+    
+    header.addEventListener('click', function() {
+      // Toggle content visibility
+      if (content.style.display === "none" || !content.style.display) {
+        content.style.display = "block";
+        icon.textContent = "▼"; // Change arrow to pointing down
+        updateLicenseDetails(); // Load license details when expanded
+      } else {
+        content.style.display = "none";
+        icon.textContent = "▶"; // Change arrow to pointing right
+      }
+    });
+    
+    // Add event listeners for license management buttons
+    document.getElementById('refreshLicenseBtn').addEventListener('click', refreshLicense);
+    document.getElementById('deactivateLicenseBtn').addEventListener('click', deactivateLicense);
+    
+    // Initialize license details
+    updateLicenseDetails();
+  }
+}
+
+// Make sure to define updateLicenseDetails function if it's not already defined
+function updateLicenseDetails() {
+  const licenseDetails = document.getElementById('licenseDetails');
+  const licenseActionButtons = document.getElementById('licenseActionButtons');
+  
+  if (!licenseDetails || !licenseActionButtons) return;
+  
+  chrome.storage.sync.get(['premiumStatus'], (result) => {
+    const premiumData = result.premiumStatus || {};
+    
+    if (premiumData.active) {
+      // Show action buttons when license is active
+      licenseActionButtons.style.display = 'block';
+      
+      // Format dates
+      const activatedDate = premiumData.activatedOn ? 
+        new Date(premiumData.activatedOn).toLocaleDateString() : 'Unknown';
+      
+      const lastVerifiedInfo = premiumData.lastVerified ? 
+        `<p><strong>Last Verified:</strong> ${new Date(premiumData.lastVerified).toLocaleString()}</p>` : '';
+      
+      const expiryInfo = premiumData.expiresOn ? 
+        `<p><strong>Expires On:</strong> ${new Date(premiumData.expiresOn).toLocaleDateString()}</p>` : 
+        '<p><strong>License Type:</strong> Lifetime (no expiration)</p>';
+      
+      // Add activation count information if available
+      const activationInfo = premiumData.timesActivatedMax ? 
+        `<p><strong>Activations:</strong> ${premiumData.timesActivated || 1} / ${premiumData.timesActivatedMax}</p>` : '';
+      
+      licenseDetails.innerHTML = `
+        <div class="license-active">
+          <p><strong>Status:</strong> <span style="color: green;">Active</span></p>
+          <p><strong>License Key:</strong> ${maskLicenseKey(premiumData.licenseKey || 'Unknown')}</p>
+          <p><strong>Activated On:</strong> ${activatedDate}</p>
+          ${expiryInfo}
+          ${activationInfo}
+          ${lastVerifiedInfo}
+        </div>
+      `;
+      
+      // Show license management section when license exists
+      const licenseSection = document.getElementById('licenseManagementSection');
+      if (licenseSection) {
+        licenseSection.style.display = 'block';
+      }
+    } else {
+      // Hide action buttons when no license is active
+      licenseActionButtons.style.display = 'none';
+      
+      // Hide the entire license management section when no license exists
+      const licenseSection = document.getElementById('licenseManagementSection');
+      if (licenseSection) {
+        licenseSection.style.display = 'none';
+      }
+      
+      licenseDetails.innerHTML = `
+        <div class="license-inactive">
+          <p>No active license found.</p>
+          <button id="addLicenseBtn" class="primary-btn">Add License Key</button>
+        </div>
+      `;
+      
+      // Add event listener to the Add License button
+      const addLicenseBtn = document.getElementById('addLicenseBtn');
+      if (addLicenseBtn) {
+        addLicenseBtn.addEventListener('click', showPremiumUpgradeModal);
+      }
+    }
+  });
+}
+
+// Function to mask license key for display (show only last 4 characters)
+function maskLicenseKey(key) {
+  if (!key || key === 'Unknown') return 'Unknown';
+  if (key.length <= 4) return key;
+  return '••••••••' + key.slice(-4);
+}
+
+// Function to refresh the license status using official API
+function refreshLicense() {
+  chrome.storage.sync.get(['premiumStatus'], (result) => {
+    const premiumData = result.premiumStatus || {};
+    const licenseKey = premiumData.licenseKey;
+    
+    if (!licenseKey) {
+      customStatus.innerHTML = `<div style="color: red;">No license key found. Please add a license first.</div>`;
+      return;
+    }
+    
+    // Show loading message
+    customStatus.innerHTML = `<div style="color: blue;">Refreshing license status...</div>`;
+    
+    // Use the official License Manager for WooCommerce REST API
+    // The license key is part of the URL path
+    const apiUrl = `https://ridwancard.my.id/wp-json/lmfwc/v2/licenses/validate/${licenseKey}`;
+    const consumerKey = 'ck_9eeb9517833188c72cdf4d94dac63f6cbc18ba3c';
+    const consumerSecret = 'cs_6ac366de7eae5804493d735e58d08b85db8944cb';
+    
+    // Basic authentication for WooCommerce API
+    const credentials = btoa(`${consumerKey}:${consumerSecret}`);
+    
+    fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Basic ${credentials}`,
+        'Content-Type': 'application/json'
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success === true) {
+        // Update stored license information with latest data
+        chrome.storage.sync.set({
+          'premiumStatus': {
+            active: true,
+            activatedOn: premiumData.activatedOn || new Date().toISOString(),
+            licenseKey: licenseKey,
+            expiresOn: data.data?.expiresAt || null,
+            lastVerified: new Date().toISOString(),
+            timesActivated: data.data?.timesActivated || 1,
+            timesActivatedMax: data.data?.timesActivatedMax || null
+          }
+        }, () => {
+          // Update UI
+          updateLicenseDetails();
+          displayPremiumStatus();
+          
+          // Show success message
+          customStatus.innerHTML = `<div style="color: green;">License refreshed successfully!</div>`;
+          setTimeout(() => {
+            customStatus.textContent = "";
+          }, 4000);
+        });
+      } else {
+        // License is no longer valid
+        chrome.storage.sync.set({
+          'premiumStatus': {
+            active: false,
+            licenseKey: licenseKey,
+            deactivatedOn: new Date().toISOString(),
+            reason: data.message || 'License is no longer valid'
+          }
+        }, () => {
+          isPremiumUser = false;
+          updateLicenseDetails();
+          displayPremiumStatus();
+          loadCustomShortcuts();
+          
+          customStatus.innerHTML = `<div style="color: red;">License is no longer valid: ${data.message || 'Please renew your license.'}</div>`;
+          setTimeout(() => {
+            customStatus.textContent = "";
+          }, 5000);
+        });
+      }
+    })
+    .catch(error => {
+      console.error('License refresh error:', error);
+      customStatus.innerHTML = '<div style="color: red;">Error connecting to license server. Please try again later.</div>';
+      setTimeout(() => {
+        customStatus.textContent = "";
+      }, 4000);
+    });
+  });
+}
+
+// Function to deactivate the license using official API
+function deactivateLicense() {
+  if (confirm('Are you sure you want to deactivate your premium license? This will revert you to the free version with limited features.')) {
+    chrome.storage.sync.get(['premiumStatus'], (result) => {
+      const premiumData = result.premiumStatus || {};
+      const licenseKey = premiumData.licenseKey;
+      
+      if (!licenseKey) {
+        // No license to deactivate
+        chrome.storage.sync.remove(['premiumStatus'], () => {
+          isPremiumUser = false;
+          displayPremiumStatus();
+          loadCustomShortcuts();
+          updateLicenseDetails();
+          
+          customStatus.innerHTML = `<div style="color: orange;">License deactivated. You're now using the free version.</div>`;
+          setTimeout(() => {
+            customStatus.textContent = "";
+          }, 4000);
+        });
+        return;
+      }
+      
+      // Show loading message
+      customStatus.innerHTML = `<div style="color: blue;">Deactivating license...</div>`;
+      
+      // Use the official License Manager for WooCommerce REST API
+      const apiUrl = `https://ridwancard.my.id/wp-json/lmfwc/v2/licenses/deactivate/${licenseKey}`;
+      const consumerKey = 'ck_9eeb9517833188c72cdf4d94dac63f6cbc18ba3c';
+      const consumerSecret = 'cs_6ac366de7eae5804493d735e58d08b85db8944cb';
+      
+      // Basic authentication for WooCommerce API
+      const credentials = btoa(`${consumerKey}:${consumerSecret}`);
+      
+      fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        // Remove local license data
+        chrome.storage.sync.remove(['premiumStatus'], () => {
+          isPremiumUser = false;
+          displayPremiumStatus();
+          loadCustomShortcuts();
+          updateLicenseDetails();
+          
+          if (data.success === true) {
+            customStatus.innerHTML = `<div style="color: orange;">License deactivated successfully. You're now using the free version.</div>`;
+          } else {
+            customStatus.innerHTML = `<div style="color: orange;">License deactivated locally. You're now using the free version.</div>`;
+            console.warn('Remote deactivation failed:', data.message);
+          }
+          
+          setTimeout(() => {
+            customStatus.textContent = "";
+          }, 4000);
+        });
+      })
+      .catch(error => {
+        console.error('License deactivation error:', error);
+        // Still remove local license data even if API call fails
+        chrome.storage.sync.remove(['premiumStatus'], () => {
+          isPremiumUser = false;
+          displayPremiumStatus();
+          loadCustomShortcuts();
+          updateLicenseDetails();
+          
+          customStatus.innerHTML = `<div style="color: orange;">License deactivated locally. You're now using the free version.</div>`;
+          setTimeout(() => {
+            customStatus.textContent = "";
+          }, 4000);
+        });
+      });
+    });
+  }
+}
+
+// License API Configuration
+const LICENSE_API_CONFIG = {
+  // Replace with your actual domain - using a variable for easier updating
+  baseUrl: 'https://ridwancard.my.id',
+  
+  // For security reasons, these should ideally be obfuscated or encrypted
+  // Consider using environment variables in production builds
+  credentials: {
+    consumerKey: 'ck_9eeb9517833188c72cdf4d94dac63f6cbc18ba3c',
+    consumerSecret: 'cs_6ac366de7eae5804493d735e58d08b85db8944cb'
+  },
+  
+  // API endpoints
+  endpoints: {
+    activate: '/wp-json/lmfwc/v2/licenses/activate/',
+    validate: '/wp-json/lmfwc/v2/licenses/validate/',
+    deactivate: '/wp-json/lmfwc/v2/licenses/deactivate/'
+  }
+};
+
+// Helper function to create authorization header
+function getAuthorizationHeader() {
+  return btoa(`${LICENSE_API_CONFIG.credentials.consumerKey}:${LICENSE_API_CONFIG.credentials.consumerSecret}`);
+}
+
+// Helper function to make license API requests
+function makeLicenseApiRequest(endpoint, licenseKey) {
+  const url = `${LICENSE_API_CONFIG.baseUrl}${endpoint}${licenseKey}`;
+  
+  return fetch(url, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Basic ${getAuthorizationHeader()}`,
+      'Content-Type': 'application/json'
+    }
+  })
+  .then(response => {
+    if (!response.ok) {
+      throw new Error(`Server responded with status: ${response.status}`);
+    }
+    return response.text().then(text => {
+      try {
+        // Handle potential HTML errors in response
+        if (text.includes('<b>Warning</b>') || text.includes('<br />')) {
+          const jsonMatch = text.match(/(\{.*\})/);
+          if (jsonMatch && jsonMatch[1]) {
+            return JSON.parse(jsonMatch[1]);
+          }
+          throw new Error('Server returned HTML error with no valid JSON');
+        }
+        return JSON.parse(text);
+      } catch (e) {
+        console.error('Failed to parse response:', e);
+        throw new Error('Failed to parse server response');
+      }
+    });
+  });
 }

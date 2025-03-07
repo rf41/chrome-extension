@@ -1,12 +1,15 @@
 {
   "manifest_version": 3,
-  "name": "Custom Shortcut Extension",
+  "name": "Quick Site Shortcuts",
   "version": "1.0",
-  "description": "Open custom URLs using keyboard shortcuts and access site-specific shortcuts through a floating panel",
+  "description": "Quick Site Shortcuts gives you instant access to your most used page in a websites. Create domain-specific shortcuts, use keyboard commands, and navigate with a convenient floating panel",
   "background": {
     "service_worker": "background.js"
   },
   "permissions": ["storage", "commands", "activeTab", "tabs", "notifications", "identity"],
+  "host_permissions": [
+    "http://localhost/wordpress/*"
+  ],
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
@@ -30,7 +33,7 @@
     }
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'none'"
+    "extension_pages": "script-src 'self'; object-src 'self'"
   },
   "commands": {
     "open-custom-url": {
@@ -69,9 +72,5 @@
     "shortcut-10": {
       "description": "Keyboard Shortcut 10"
     }
-  },
-  "oauth2": {
-    "client_id": "YOUR_CLIENT_ID",
-    "scopes": ["https://www.googleapis.com/auth/chromewebstore.readonly"]
   }
 }

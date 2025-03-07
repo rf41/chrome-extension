@@ -5,55 +5,85 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Custom Shortcut Options</title>
   <link rel="stylesheet" href="options.css">
-  <script src="https://www.gstatic.com/chrome/webstore/images/payments/google-payments-inapp.js"></script>
-</head>
+  </head>
 <body>
-  <h1>Custom Shortcut Settings</h1>
+  <h1>  
+    <span id="extensionIcon" class="extension-icon" style="display: inline-flex; vertical-align: middle;">
+      <img src="../icons/icon48.png" alt="Extension Icon" width="24" height="24">
+    </span> 
+    <span style="vertical-align: middle;">Quick Site Shortcuts</span>
+  </h1>
+
+  <div class="premium-status-container">
+    <!-- Premium status will be displayed here by the JavaScript -->
+  </div>
 
   <div class="shortcut-note highlight">
-    <p><strong>About Website Shortcuts</strong></p>
-
-    <p>This extension allows you to create shortcuts to your favorite websites that can be accessed via:</p>
-    <ul>
-      <li>The floating shortcut widget on any webpage</li>
-      <li>Optional keyboard shortcuts (requires additional configuration)</li>
-    </ul>
-    <p>You can set up to 10 keyboard shortcuts for your most frequently used websites.</p>
+    <h2>Welcome to Quick Site Shortcuts!</h2>
     
+    <p>This extension helps you navigate faster by providing quick access to your favorite websites with just one click or keyboard shortcut.</p>
+
+    <div class="features-container">
+      <h3>🚀 Key Features</h3>
+      <ul>
+        <li><strong>Quick Access Panel</strong> - A floating widget that appears on any webpage for immediate access to your shortcuts</li>
+        <li><strong>Smart Domain Recognition</strong> - Shortcuts appear only on relevant websites you specify</li>
+        <li><strong>Keyboard Shortcuts</strong> - Launch websites instantly using customizable keyboard combinations</li>
+        <li><strong>Easy Organization</strong> - Sort and manage your shortcuts with a simple interface</li>
+      </ul>
+    </div>
+
+    <!-- Collapsible sections -->
+    <div class="collapsible-sections">
+      <div class="collapsible-container">
+        <button class="collapsible-header">
+          <span class="collapsible-icon">▶</span>
+          <h3>🔰 Getting Started (3 Simple Steps)</h3>
+        </button>
+        <div class="collapsible-content">
+          <ol>
+            <li><strong>Add a Quick Site Shortcut</strong> - Fill in the form below with a website name, URL, and optional keyboard shortcut</li>
+            <li><strong>Configure Keyboard Shortcut</strong> - Visit Chrome's extension shortcuts page <a style="color:blue;cursor: pointer;text-decoration: underline;" id="openShortcutsPage" class="link-button">here</a> to set up keyboard commands for quick access</li>
+            <li><strong>Start Using</strong> - Visit your selected websites and use the floating panel or keyboard shortcuts!</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="collapsible-container">
+        <button class="collapsible-header">
+          <span class="collapsible-icon">▶</span>
+          <h3>💡 Productivity Tips</h3>
+        </button>
+        <div class="collapsible-content">
+          <ul>
+            <li><strong>Work Shortcuts</strong> - Group shortcuts for each project or work environment</li>
+            <li><strong>Daily Tools</strong> - Add shortcuts to tools you use daily (email, calendar, docs)</li>
+            <li><strong>Research Assistant</strong> - Create shortcuts to reference sites and search tools</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="collapsible-container">
+        <button class="collapsible-header">
+          <span class="collapsible-icon">▶</span>
+          <h3>Free vs Premium</h3>
+        </button>
+        <div class="collapsible-content">
+          <ul>
+            <li><strong>Free:</strong> Up to 3 shortcuts per domain</li>
+            <li><strong>Premium:</strong> Unlimited shortcuts per domain for maximum productivity</li>
+            <li>One-time purchase - no subscription required!</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    
+    <p>Need help? Follow this full guide for detailed instructions <button id="shortcutGuideBtn" class="inline-button">Show Guide</button></p>
   </div>  
 
-  <div class="shortcut-note">
-    <p><strong>Default Shortcuts:</strong></p>
-    <ul>
-      <li><span class="shortcut-key">Ctrl+Shift+U</span> - Open this settings page</li>
-      <li><span class="shortcut-key">Alt+Shift+S</span> - Toggle shortcuts widget</li>
-    </ul>
-  </div>
-  
-  <div id="customContent">
-    <h2>Custom URL Keyboard Shortcuts</h2>
-    
-    <p>Hot to add custom shortcuts to directly open specific websites with your chosen keyboard shortcuts.</p>
-    
-    <div class="shortcut-note warning">
-        <p><strong>Important Instructions:</strong></p>
-        <ol>
-          <li>Add your custom URL shortcuts below</li>
-          <li>After adding a shortcut, go to <code>chrome://extensions/shortcuts</code></li>
-          <li>Find this extension and set the keyboard combination for your shortcuts</li>
-          <li>Return to this page to manage your shortcuts</li>
-        </ol>
-        <p>Chrome extensions require keyboard shortcuts to be configured through Chrome's settings.</p>
-      </div>
-    
-      <div class="shortcut-note highlight">
-        <p><strong>Set Up Your Keyboard Shortcuts</strong></p>
-        <p>You need to configure keyboard shortcuts for your commands to work:</p>
-        <button id="configureShortcutsBtn" class="primary-btn">Configure Keyboard Shortcuts (Optional)</button>
-        <button id="shortcutGuideBtn" class="guide-btn">How to Configure Shortcuts</button>
-      </div>
+    <h2>⚡ Create New Quick Site Shortcut</h2>
+    <p>Fill out the form below to add a new quick site shortcut to your collection.</p>
 
-    <h2>Add Your Custom Menu Widget</h2>  
     <form id="shortcutForm">
       <div class="form-group">
         <label for="title">Shortcut Title:</label>
@@ -72,7 +102,7 @@
             <option value="">Select a command ID</option>
           </select>
         </div>
-        <div class="shortcut-hint">Select from one of the pre-defined commands</div>
+        <div class="shortcut-hint">Set the shortcut command keyboard <a style="color:blue;cursor: pointer;text-decoration: underline;" id="openShortcutsPage" class="link-button">here</a>.</div>
       </div>
 
       <div class="form-group">
