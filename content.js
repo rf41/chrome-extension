@@ -1,106 +1,108 @@
 /**
- * Content script for Custom Shortcut Extension
- * Adds a floating panel to access shortcuts from any page
+ * Content script for Quick Site Shortcuts extension
+ * Adds a floating panel to access shortcuts on websites
  */
 
-// Function to get initials from title
-function getInitials(title) {
-  // Handle empty strings
-  if (!title) return '?';
+// ===== HELPER FUNCTIONS =====
 
-  // Split by spaces and get first letter of each word (max 2)
-  const words = title.trim().split(/\s+/);
-  if (words.length === 1) {
-    // If single word, return first 2 letters (or 1 if very short)
-    return words[0].length > 1 ? words[0].substring(0, 2).toUpperCase() : words[0].substring(0, 1).toUpperCase();
-  }
-
-  // Return first letter of first word + first letter of last word
-  return (words[0][0] + words[words.length - 1][0]).toUpperCase();
-}
-
-// Generate a background color based on text
-function getColorFromText(text) {
-  // Simple hash function to generate color
-  let hash = 0;
-  for (let i = 0; i < text.length; i++) {
-    hash = text.charCodeAt(i) + ((hash << 5) - hash);
-  }
-
-  // Use pastel-like colors
-  const hue = hash % 360;
-  return `hsl(${hue}, 70%, 65%)`;
-}
-
-// Get the current domain
+/**
+ * Get the current domain
+ * @returns {string} Current hostname
+ */
 function getCurrentDomain() {
   return window.location.hostname;
 }
 
-// Enhance the domain matching function to support subdomains
+/**
+ * Check if domains match (handles subdomains and wildcards)
+ * @param {string} targetDomain - Domain pattern to check
+ * @param {string} currentDomain - Current domain
+ * @returns {boolean} Whether domains match
+ */
 function isDomainMatch(targetDomain, currentDomain) {
-  // Direct match
-  if (targetDomain === currentDomain) return true;
-
-  // Check for wildcard subdomain matching
-  if (targetDomain.startsWith('*.')) {
-    const baseDomain = targetDomain.substring(2);
-    return currentDomain === baseDomain || currentDomain.endsWith('.' + baseDomain);
-  }
-
-  // Try as regex pattern match
-  try {
-    const regex = new RegExp(targetDomain, 'i');
-    return regex.test(currentDomain);
-  } catch (e) {
-    // If invalid regex, just do exact match
-    return false;
-  }
-}
-
-// Store references to event listeners for cleanup
-let documentClickListener = null;
-
-function setupEventListeners(panel) {
-  // Remove existing listeners first
-  if (documentClickListener) {
-    document.removeEventListener('click', documentClickListener);
+  if (!targetDomain || !currentDomain) return false;
+  
+  // Convert to lowercase for case-insensitive comparison
+  const pattern = targetDomain.toLowerCase();
+  const domain = currentDomain.toLowerCase();
+  
+  // Exact match
+  if (pattern === domain) return true;
+  
+  // Wildcard subdomain matching
+  if (pattern.startsWith('*.')) {
+    const baseDomain = pattern.substring(2);
+    return domain === baseDomain || domain.endsWith('.' + baseDomain);
   }
   
-  // Create and store new listener
-  documentClickListener = (e) => {
-    if (!panel.contains(e.target) && panel.classList.contains('shortcut-ext-expanded')) {
-      panel.classList.remove('shortcut-ext-expanded');
-      panel.classList.add('shortcut-ext-collapsed');
-    }
-  };
-  
-  // Add listener
-  document.addEventListener('click', documentClickListener);
+  return false;
 }
 
-// Enhanced toggle functionality with dynamic expansion direction
-function toggleBtn_onClick() {
+/**
+ * Generate initials from text
+ * @param {string} text - Input text
+ * @returns {string} 1-2 character initials
+ */
+function getInitials(text) {
+  if (!text) return '?';
+  
+  const words = text.trim().split(/\s+/);
+  if (words.length === 1) {
+    return words[0].substring(0, 2).toUpperCase();
+  }
+  return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+}
+
+/**
+ * Generate a consistent color from text
+ * @param {string} text - Input text
+ * @returns {string} HSL color string
+ */
+function getColorFromText(text) {
+  if (!text) return 'hsl(0, 0%, 80%)';
+  
+  let hash = 0;
+  for (let i = 0; i < text.length; i++) {
+    hash = text.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  
+  const hue = hash % 360;
+  return `hsl(${hue}, 70%, 65%)`;
+}
+
+/**
+ * Check if current user has premium status
+ * @returns {Promise<boolean>} Premium status
+ */
+function isPremiumUser() {
+  return new Promise(resolve => {
+    chrome.storage.sync.get(['premiumStatus'], (result) => {
+      resolve(result.premiumStatus && result.premiumStatus.active === true);
+    });
+  });
+}
+
+// ===== UI COMPONENTS AND BEHAVIORS =====
+
+/**
+ * Toggle panel visibility with dynamic expansion direction
+ */
+function togglePanel() {
   const panel = document.getElementById('shortcut-ext-panel');
   if (!panel) return;
   
-  // If already expanded, simply collapse and restore original position
   if (panel.classList.contains('shortcut-ext-expanded')) {
-    // Store position before collapsing
-    const rect = panel.getBoundingClientRect();
-    
-    // Remove expanded classes
+    // Collapse panel
     panel.classList.remove('shortcut-ext-expanded');
     panel.classList.remove('expand-right-down', 'expand-left-down', 'expand-right-up', 'expand-left-up');
     panel.classList.add('shortcut-ext-collapsed');
     
-    // Get the original position from the data attributes
+    // Restore original position
     const originalRight = panel.getAttribute('data-original-right');
     const originalBottom = panel.getAttribute('data-original-bottom');
     const originalLeft = panel.getAttribute('data-original-left');
     const originalTop = panel.getAttribute('data-original-top');
     
-    // Restore original position
     if (originalRight && originalBottom) {
       panel.style.right = originalRight;
       panel.style.bottom = originalBottom;
@@ -126,110 +128,218 @@ function toggleBtn_onClick() {
     panel.setAttribute('data-original-top', style.top);
   }
   
-  // Determine best expansion direction
+  // Determine expansion direction based on available space
   const rect = panel.getBoundingClientRect();
   const viewportWidth = window.innerWidth;
   const viewportHeight = window.innerHeight;
-  
-  // Get panel dimensions
-  const expandedWidth = parseInt(panel.style.getPropertyValue('--panel-expanded-width')) || 320;
-  const expandedHeight = parseInt(panel.style.getPropertyValue('--panel-expanded-height')) || 460;
+  const expandedWidth = 320;  // Fixed width value
+  const expandedHeight = 460; // Fixed height value
   
   // Calculate available space in each direction
   const spaceRight = viewportWidth - rect.right;
   const spaceLeft = rect.left;
   const spaceBottom = viewportHeight - rect.bottom;
-  const spaceTop = rect.top;
   
-  // Determine horizontal expansion direction
+  // Choose the best expansion direction
   let expandDirectionClass;
-  
   if (spaceRight >= expandedWidth) {
-    // Can expand to the right
     expandDirectionClass = spaceBottom >= expandedHeight ? 'expand-right-down' : 'expand-right-up';
   } else if (spaceLeft >= expandedWidth) {
-    // Can expand to the left
     expandDirectionClass = spaceBottom >= expandedHeight ? 'expand-left-down' : 'expand-left-up';
   } else {
-    // Not enough space horizontally, choose best direction
     expandDirectionClass = (spaceRight >= spaceLeft) ? 
       (spaceBottom >= expandedHeight ? 'expand-right-down' : 'expand-right-up') : 
       (spaceBottom >= expandedHeight ? 'expand-left-down' : 'expand-left-up');
   }
   
-  // Remove all direction classes first
-  panel.classList.remove('expand-right-down', 'expand-left-down', 'expand-right-up', 'expand-left-up');
-  
-  // Apply classes
+  // Apply expansion classes
   panel.classList.remove('shortcut-ext-collapsed');
   panel.classList.add('shortcut-ext-expanded', expandDirectionClass);
   
-  // Set a timeout to adjust height after shortcuts are loaded
+  // Adjust panel position after expansion
   setTimeout(() => {
-    adjustPanelHeight(panel);
     ensurePanelInViewport(panel);
-  }, 300);
+    loadShortcuts();
+  }, 100);
 }
 
-// Function to adjust panel height based on content
-function adjustPanelHeight(panel) {
-  const shortcutsContainer = document.getElementById('shortcut-ext-shortcuts');
-  if (!shortcutsContainer) return;
+/**
+ * Ensure panel stays within viewport boundaries
+ * @param {HTMLElement} panel - Panel element to adjust
+ */
+function ensurePanelInViewport(panel) {
+  const rect = panel.getBoundingClientRect();
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
   
-  // Get all shortcut items
-  const shortcutItems = shortcutsContainer.querySelectorAll('.shortcut-ext-item');
+  // Calculate necessary adjustments
+  let leftAdjust = 0;
+  let topAdjust = 0;
   
-  if (shortcutItems.length === 0) return;
+  if (rect.right > viewportWidth - 20) leftAdjust = viewportWidth - 20 - rect.right;
+  if (rect.left < 20) leftAdjust = 20 - rect.left;
+  if (rect.bottom > viewportHeight - 20) topAdjust = viewportHeight - 20 - rect.bottom;
+  if (rect.top < 20) topAdjust = 20 - rect.top;
   
-  // Reset max-height temporarily to measure content
-  shortcutsContainer.style.maxHeight = 'none';
-  
-  // Calculate height for visible elements (max 3 items)
-  const itemHeight = shortcutItems[0].offsetHeight + 10; // Add margin
-  
-  // Calculate other elements' heights
-  const headerHeight = panel.querySelector('.shortcut-ext-header').offsetHeight || 60;
-  const searchHeight = panel.querySelector('.shortcut-ext-search').offsetHeight || 60;
-  // Removed footer height reference
-  
-  // Calculate container height for 3 items max
-  const shortcutsMaxHeight = Math.min(itemHeight * shortcutItems.length, itemHeight * 3);
-  
-  // Calculate total panel height (with 20px padding)
-  const totalHeight = headerHeight + searchHeight + shortcutsMaxHeight + 40;
-  
-  // Apply the height (min 200px, max 460px)
-  const finalHeight = Math.max(200, Math.min(totalHeight, 460));
-  panel.style.setProperty('--panel-expanded-height', finalHeight + 'px');
-  
-  // Re-apply scrollable max-height to shortcuts container
-  shortcutsContainer.style.maxHeight = shortcutsMaxHeight + 'px';
+  // Apply adjustments if needed
+  if (leftAdjust !== 0 || topAdjust !== 0) {
+    // Get current position
+    const style = window.getComputedStyle(panel);
+    let left = rect.left;
+    let top = rect.top;
+    
+    // Update position
+    panel.style.left = `${left + leftAdjust}px`;
+    panel.style.top = `${top + topAdjust}px`;
+    panel.style.right = 'auto';
+    panel.style.bottom = 'auto';
+    
+    // Save new position
+    savePosition(panel);
+  }
 }
 
-// Create the shortcuts panel
+/**
+ * Save panel position to storage
+ * @param {HTMLElement} panel - Panel element
+ */
+function savePosition(panel) {
+  const position = {
+    top: panel.style.top,
+    left: panel.style.left,
+    right: panel.style.right,
+    bottom: panel.style.bottom
+  };
+  
+  chrome.storage.sync.set({ 'panelPosition': position });
+}
+
+/**
+ * Make an element draggable
+ * @param {HTMLElement} element - Element to make draggable
+ * @param {HTMLElement} handle - Drag handle element
+ */
+function makeElementDraggable(element, handle) {
+  let startX, startY, startLeft, startTop;
+  let isDragging = false;
+  let hasMoved = false;
+  
+  function dragStart(e) {
+    // Only handle primary mouse button
+    if (e.button !== 0) return;
+    
+    // Only allow dragging from handle
+    if (e.target !== handle && !handle.contains(e.target)) return;
+    
+    e.preventDefault();
+    hasMoved = false;
+    
+    // Store initial positions
+    startX = e.clientX;
+    startY = e.clientY;
+    
+    const rect = element.getBoundingClientRect();
+    startLeft = rect.left;
+    startTop = rect.top;
+    
+    isDragging = true;
+    element.classList.add('shortcut-ext-dragging');
+    
+    // Add temporary global listeners
+    document.addEventListener('mousemove', drag);
+    document.addEventListener('mouseup', dragEnd);
+  }
+  
+  function drag(e) {
+    if (!isDragging) return;
+    
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    
+    // Consider real movement after 3px threshold
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+      hasMoved = true;
+    }
+    
+    // Calculate new position with boundaries
+    const rect = element.getBoundingClientRect();
+    let newLeft = startLeft + dx;
+    let newTop = startTop + dy;
+    
+    // Keep within viewport
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    newLeft = Math.max(20, Math.min(newLeft, viewportWidth - rect.width - 20));
+    newTop = Math.max(20, Math.min(newTop, viewportHeight - rect.height - 20));
+    
+    // Apply position
+    element.style.left = `${newLeft}px`;
+    element.style.top = `${newTop}px`;
+    element.style.right = 'auto';
+    element.style.bottom = 'auto';
+  }
+  
+  function dragEnd() {
+    if (!isDragging) return;
+    
+    isDragging = false;
+    element.classList.remove('shortcut-ext-dragging');
+    
+    // Remove temporary listeners
+    document.removeEventListener('mousemove', drag);
+    document.removeEventListener('mouseup', dragEnd);
+    
+    if (hasMoved) {
+      // Update data attributes
+      element.setAttribute('data-original-left', element.style.left);
+      element.setAttribute('data-original-top', element.style.top);
+      element.removeAttribute('data-original-right');
+      element.removeAttribute('data-original-bottom');
+      
+      // Save position
+      savePosition(element);
+      
+      // Prevent accidental click after drag
+      const preventClick = (e) => {
+        e.stopPropagation();
+        handle.removeEventListener('click', preventClick);
+      };
+      
+      handle.addEventListener('click', preventClick);
+    }
+  }
+  
+  // Initialize position if needed
+  if (window.getComputedStyle(element).position !== 'fixed') {
+    element.style.position = 'fixed';
+    element.style.right = '20px';
+    element.style.bottom = '20px';
+  }
+  
+  // Add drag start listener
+  handle.addEventListener('mousedown', dragStart);
+}
+
+/**
+ * Create and insert the shortcuts panel
+ */
 function createShortcutPanel() {
+  // Check if panel already exists
+  if (document.getElementById('shortcut-ext-panel')) return;
+  
   // Create panel container
   const panel = document.createElement('div');
   panel.id = 'shortcut-ext-panel';
   panel.className = 'shortcut-ext-panel shortcut-ext-collapsed';
   
-  // Set fixed dimensions for expanded state via CSS variables
-  panel.style.setProperty('--panel-expanded-width', '320px');
-  panel.style.setProperty('--panel-expanded-height', '460px');
-  panel.style.setProperty('--panel-collapsed-width', '48px');  // Added for collapsed state
-  panel.style.setProperty('--panel-collapsed-height', '48px'); // Added for collapsed state
-
-  // Create content wrapper to facilitate scrolling
-  const contentWrapper = document.createElement('div');
-  contentWrapper.className = 'shortcut-ext-content-wrapper';
-
-  // Create toggle button with modern design
+  // Create toggle button
   const toggleBtn = document.createElement('button');
   toggleBtn.id = 'shortcut-ext-toggle';
   toggleBtn.className = 'shortcut-ext-toggle';
+  toggleBtn.setAttribute('aria-label', 'Toggle shortcuts panel');
   toggleBtn.innerHTML = `
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect>
+      <rect x="2" y="4" width="20" height="16" rx="2"></rect>
       <path d="M6 8h.01"></path>
       <path d="M10 8h.01"></path>
       <path d="M14 8h.01"></path>
@@ -240,21 +350,24 @@ function createShortcutPanel() {
       <path d="M7 16h10"></path>
     </svg>
   `;
-  toggleBtn.title = 'Toggle Custom Shortcuts';
-
-   // Create panel header
-  const panelHeader = document.createElement('div');
-  panelHeader.className = 'shortcut-ext-header';
-  panelHeader.innerHTML = `
+  
+  // Create content wrapper
+  const contentWrapper = document.createElement('div');
+  contentWrapper.className = 'shortcut-ext-content-wrapper';
+  
+  // Create header
+  const header = document.createElement('div');
+  header.className = 'shortcut-ext-header';
+  header.innerHTML = `
     <h3>Shortcuts for this site</h3>
     <div class="shortcut-ext-header-actions">
-      <button id="shortcut-ext-settings" class="shortcut-ext-button" title="Settings">
+      <button id="shortcut-ext-settings" class="shortcut-ext-button" aria-label="Settings">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="3"></circle>
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
         </svg>
       </button>
-      <button id="shortcut-ext-close" class="shortcut-ext-close" title="Close Panel">
+      <button id="shortcut-ext-close" class="shortcut-ext-close" aria-label="Close">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="18" y1="6" x2="6" y2="18"></line>
           <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -262,34 +375,8 @@ function createShortcutPanel() {
       </button>
     </div>
   `;
-
-  // Check premium status and add badge if premium
-  isPremiumUser().then(premium => {
-    if (premium) {
-      const header = panelHeader.querySelector('h3');
-      if (header) {
-        header.innerHTML = `
-          Shortcuts for this site
-          <span class="premium-badge-small">PRO</span>
-        `;
-      }
-    }
-  });
-
-  // Create shortcuts container
-  const shortcutsContainer = document.createElement('div');
-  shortcutsContainer.id = 'shortcut-ext-shortcuts';
-  shortcutsContainer.className = 'shortcut-ext-shortcuts';
-
-  // Create loading indicator with modern spinner
-  shortcutsContainer.innerHTML = `
-    <div class="shortcut-ext-loading">
-      <div class="shortcut-ext-spinner"></div>
-      <p>Loading shortcuts...</p>
-    </div>
-  `;
-
-  // Create search box for filtering shortcuts
+  
+  // Create search box
   const searchBox = document.createElement('div');
   searchBox.className = 'shortcut-ext-search';
   searchBox.innerHTML = `
@@ -301,382 +388,223 @@ function createShortcutPanel() {
       <input type="text" id="shortcut-ext-search-input" placeholder="Search shortcuts...">
     </div>
   `;
-
-  // Add elements to the panel
-  panel.appendChild(toggleBtn);
-  contentWrapper.appendChild(panelHeader);
+  
+  // Create shortcuts container
+  const shortcutsContainer = document.createElement('div');
+  shortcutsContainer.id = 'shortcut-ext-shortcuts';
+  shortcutsContainer.className = 'shortcut-ext-shortcuts';
+  
+  // Assemble panel
+  contentWrapper.appendChild(header);
   contentWrapper.appendChild(searchBox);
   contentWrapper.appendChild(shortcutsContainer);
-  
-
-  // Add wrapper to panel
+  panel.appendChild(toggleBtn);
   panel.appendChild(contentWrapper);
-
-  // Add panel to the page
-  document.body.appendChild(panel);
-
-  // Replace the toggle functionality with our dynamic function
-  toggleBtn.addEventListener('click', toggleBtn_onClick);
   
-  // Same for the keyboard shortcut
-  document.addEventListener('keydown', (e) => {
-    if (e.altKey && e.shiftKey && e.key === 'S') {
-      toggleBtn_onClick();
-    }
+  // Add to page
+  document.body.appendChild(panel);
+  
+  // Add event listeners
+  toggleBtn.addEventListener('click', togglePanel);
+  
+  // Settings button
+  const settingsBtn = document.getElementById('shortcut-ext-settings');
+  settingsBtn.addEventListener('click', () => {
+    chrome.runtime.sendMessage({action: "openOptions"});
   });
-
-  // Add close functionality
+  
+  // Close button
   const closeBtn = document.getElementById('shortcut-ext-close');
-  if (closeBtn) {
-    closeBtn.addEventListener('click', () => {
+  closeBtn.addEventListener('click', () => {
+    panel.classList.remove('shortcut-ext-expanded');
+    panel.classList.add('shortcut-ext-collapsed');
+  });
+  
+  // Search functionality
+  const searchInput = document.getElementById('shortcut-ext-search-input');
+  searchInput.addEventListener('input', (e) => {
+    const query = e.target.value.toLowerCase().trim();
+    const items = document.querySelectorAll('.shortcut-ext-item');
+    
+    items.forEach(item => {
+      const title = (item.getAttribute('data-title') || '').toLowerCase();
+      const url = (item.getAttribute('data-url') || '').toLowerCase();
+      item.style.display = (title.includes(query) || url.includes(query)) ? 'flex' : 'none';
+    });
+  });
+  
+  // Click outside to close
+  document.addEventListener('click', (e) => {
+    if (panel.classList.contains('shortcut-ext-expanded') && 
+        !panel.contains(e.target)) {
       panel.classList.remove('shortcut-ext-expanded');
       panel.classList.add('shortcut-ext-collapsed');
-    });
-  }
-
-  // Add settings functionality
-  const settingsBtn = document.getElementById('shortcut-ext-settings');
-  if (settingsBtn) {
-    settingsBtn.addEventListener('click', () => {
-      chrome.runtime.sendMessage({action: "openOptions"});
-    });
-  }
-
-  // Add search functionality
-  const searchInput = document.getElementById('shortcut-ext-search-input');
-  if (searchInput) {
-    searchInput.addEventListener('input', (e) => {
-      const query = e.target.value.toLowerCase();
-      const shortcutItems = document.querySelectorAll('.shortcut-ext-item');
-
-      shortcutItems.forEach(item => {
-        const title = item.getAttribute('data-title').toLowerCase();
-        const url = item.getAttribute('data-url').toLowerCase();
-
-        if (title.includes(query) || url.includes(query)) {
-          item.style.display = 'flex';
-        } else {
-          item.style.display = 'none';
-        }
-      });
-    });
-  }
-
-  // Setup event listeners
-  setupEventListeners(panel);
+    }
+  });
   
-  // Set panel position from user preference
+  // Set position from storage
   chrome.storage.sync.get(['panelPosition'], (result) => {
     const position = result.panelPosition || { right: '20px', bottom: '20px' };
-    
-    // Apply position
     Object.keys(position).forEach(key => {
-      panel.style[key] = position[key];
-      
-      // Store original position as data attributes
-      if (key === 'right' || key === 'bottom' || key === 'left' || key === 'top') {
-        panel.setAttribute('data-original-' + key, position[key]);
+      if (position[key] !== 'auto') {
+        panel.style[key] = position[key];
+        if (['top', 'bottom', 'left', 'right'].includes(key)) {
+          panel.setAttribute('data-original-' + key, position[key]);
+        }
       }
     });
-    
-    // Ensure initial position is valid
-    if (panel.classList.contains('shortcut-ext-expanded')) {
-      ensurePanelInViewport(panel);
-    }
   });
   
   // Make panel draggable
   makeElementDraggable(panel, toggleBtn);
-}
-
-// Function to ensure panel stays within viewport
-function ensurePanelInViewport(panel) {
-  // Get panel dimensions
-  const rect = panel.getBoundingClientRect();
-  const viewportWidth = window.innerWidth;
-  const viewportHeight = window.innerHeight;
   
-  // Calculate adjustments if needed
-  let leftAdjust = 0;
-  let topAdjust = 0;
-  
-  // Check right edge
-  if (rect.right > viewportWidth - 20) {
-    leftAdjust = viewportWidth - 20 - rect.right;
-  }
-  
-  // Check left edge
-  if (rect.left < 20) {
-    leftAdjust = 20 - rect.left;
-  }
-  
-  // Check bottom edge
-  if (rect.bottom > viewportHeight - 20) {
-    topAdjust = viewportHeight - 20 - rect.bottom;
-  }
-  
-  // Check top edge
-  if (rect.top < 20) {
-    topAdjust = 20 - rect.top;
-  }
-  
-  // Apply adjustments if needed
-  if (leftAdjust !== 0 || topAdjust !== 0) {
-    // Convert any right/bottom to left/top for consistency
-    const style = window.getComputedStyle(panel);
-    let left = parseInt(style.left) || 0;
-    let top = parseInt(style.top) || 0;
-    
-    if (left === 0 && style.right !== 'auto') {
-      left = viewportWidth - rect.width - parseInt(style.right);
-    }
-    
-    if (top === 0 && style.bottom !== 'auto') {
-      top = viewportHeight - rect.height - parseInt(style.bottom);
-    }
-    
-    // Set adjusted position
-    panel.style.left = `${left + leftAdjust}px`;
-    panel.style.top = `${top + topAdjust}px`;
-    panel.style.right = 'auto';
-    panel.style.bottom = 'auto';
-    
-    // Update stored position
-    chrome.storage.sync.set({
-      'panelPosition': {
-        top: panel.style.top,
-        left: panel.style.left,
-        right: 'auto',
-        bottom: 'auto'
+  // Check premium status and add badge if premium
+  isPremiumUser().then(premium => {
+    if (premium) {
+      const headerText = header.querySelector('h3');
+      if (headerText) {
+        headerText.innerHTML = `Shortcuts for this site <span class="premium-badge-small">PRO</span>`;
       }
-    });
-  }
+    }
+  });
+  
+  // Initial load of shortcuts
+  loadShortcuts();
 }
 
-function makeElementDraggable(element, handle) {
-  let startX, startY, startLeft, startTop;
-  let isDragging = false;
-  let hasMoved = false; // Track if actual movement occurred
-  
-  function initPosition() {
-    const style = window.getComputedStyle(element);
-    if (style.position !== 'fixed') {
-      element.style.position = 'fixed';
-    }
-    
-    // Initialize element position if needed
-    if (!element.style.left && !element.style.top) {
-      element.style.right = '20px';
-      element.style.bottom = '20px';
-    }
-  }
-  
-  function dragStart(e) {
-    // Only allow dragging from the handle (not the entire panel)
-    if (e.target !== handle && !handle.contains(e.target)) return;
-    
-    // Prevent default behavior
-    e.preventDefault();
-    
-    // Reset movement flag
-    hasMoved = false;
-    
-    // Get initial positions
-    startX = e.clientX;
-    startY = e.clientY;
-    
-    // Get current position in pixels
-    const style = window.getComputedStyle(element);
-    startLeft = parseInt(style.left) || 0;
-    startTop = parseInt(style.top) || 0;
-    
-    // Convert right/bottom to left/top if needed
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    const rect = element.getBoundingClientRect();
-    
-    if (startLeft === 0 && style.right !== 'auto') {
-      startLeft = viewportWidth - rect.width - parseInt(style.right);
-      element.style.right = 'auto';
-    }
-    
-    if (startTop === 0 && style.bottom !== 'auto') {
-      startTop = viewportHeight - rect.height - parseInt(style.bottom);
-      element.style.bottom = 'auto';
-    }
-    
-    isDragging = true;
-    
-    // Use window event listeners for better drag tracking
-    window.addEventListener('mousemove', drag, { passive: false });
-    window.addEventListener('mouseup', dragEnd);
-    
-    // Add dragging class for visual feedback
-    element.classList.add('shortcut-ext-dragging');
-  }
-  
-  function drag(e) {
-    if (!isDragging) return;
-    e.preventDefault(); // Important for smooth dragging
-    
-    // Calculate position difference
-    const dx = e.clientX - startX;
-    const dy = e.clientY - startY;
-    
-    // If moved more than 3px, consider it an actual drag
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
-      hasMoved = true;
-    }
-    
-    // Get viewport dimensions
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    const rect = element.getBoundingClientRect();
-    
-    // Calculate new position with boundary checks
-    let newLeft = startLeft + dx;
-    let newTop = startTop + dy;
-    
-    // Ensure panel stays within viewport boundaries (with 20px margin)
-    newLeft = Math.max(20, Math.min(newLeft, viewportWidth - rect.width - 20));
-    newTop = Math.max(20, Math.min(newTop, viewportHeight - rect.height - 20));
-    
-    // Apply new position
-    element.style.left = `${newLeft}px`;
-    element.style.top = `${newTop}px`;
-    element.style.right = 'auto';
-    element.style.bottom = 'auto';
-  }
-  
-  function dragEnd(e) {
-    if (!isDragging) return;
-    
-    isDragging = false;
-    window.removeEventListener('mousemove', drag);
-    window.removeEventListener('mouseup', dragEnd);
-    
-    // Remove dragging class
-    element.classList.remove('shortcut-ext-dragging');
-    
-    // Only save position if actually moved
-    if (hasMoved) {
-      // Store as original position data attributes
-      element.setAttribute('data-original-left', element.style.left);
-      element.setAttribute('data-original-top', element.style.top);
-      element.removeAttribute('data-original-right');
-      element.removeAttribute('data-original-bottom');
-      
-      // Save position for persistence
-      chrome.storage.sync.set({
-        'panelPosition': {
-          top: element.style.top,
-          left: element.style.left,
-          right: 'auto',
-          bottom: 'auto'
-        }
-      });
-      
-      // Prevent toggle from opening after drag
-      e.stopPropagation();
-      
-      // IMPORTANT: Create a more robust click prevention
-      const clickThreshold = 300; // milliseconds
-      const clickBlocker = (event) => {
-        event.stopPropagation();
-        event.preventDefault();
-      };
-      
-      // Block all clicks on the handle for a short period after drag
-      handle.addEventListener('click', clickBlocker, true);
-      
-      // Remove the click blocker after the threshold
-      setTimeout(() => {
-        handle.removeEventListener('click', clickBlocker, true);
-      }, clickThreshold);
-    }
-  }
-  
-  // Initialize position
-  initPosition();
-  
-  // Add listeners
-  handle.addEventListener('mousedown', dragStart);
-}
-
-// Load shortcuts from storage
+/**
+ * Load shortcuts from storage and populate the panel
+ */
 function loadShortcuts() {
-  const shortcutsContainer = document.getElementById('shortcut-ext-shortcuts');
-  if (!shortcutsContainer) return;
-
-  // Show loading spinner
-  shortcutsContainer.innerHTML = `
+  const container = document.getElementById('shortcut-ext-shortcuts');
+  if (!container) return;
+  
+  // Show loading
+  container.innerHTML = `
     <div class="shortcut-ext-loading">
       <div class="shortcut-ext-spinner"></div>
       <p>Loading shortcuts...</p>
     </div>
   `;
-
+  
   const currentDomain = getCurrentDomain();
-
-  // Request shortcuts from background script
+  
+  // Request shortcuts from background
   chrome.runtime.sendMessage({action: "getShortcuts"}, (response) => {
-
-      // Group shortcuts as before
-      const domainShortcuts = response.shortcuts.filter(s => {
-        if (!s.domains || !s.domains.length) return false;
-        return s.domains.some(domain => isDomainMatch(domain, currentDomain));
-      });
-
-      const generalShortcuts = response.shortcuts.filter(s =>
-        !s.domains || !s.domains.length
-      );
-
-      const sortedShortcuts = [...domainShortcuts, ...generalShortcuts];
-
-      // Create shortcuts grid - IMPORTANT: Don't include footer here
-      let shortcutsHtml = '<div class="shortcut-ext-grid">';
-
-      sortedShortcuts.forEach(shortcut => {
-        const initials = getInitials(shortcut.title);
-        const bgColor = getColorFromText(shortcut.title);
-        const isSiteSpecific = shortcut.domains && shortcut.domains.some(domain =>
-          isDomainMatch(domain, currentDomain)
-        );
-
-        shortcutsHtml += `
-          <div class="shortcut-ext-item ${isSiteSpecific ? 'site-specific' : ''}" data-title="${shortcut.title}" data-url="${shortcut.url}">
-            <a href="${shortcut.url}" class="shortcut-ext-link" data-url="${shortcut.url}">
-              <div class="shortcut-ext-icon-wrapper" style="background-color: ${bgColor}">
-                ${isSiteSpecific ? '<span class="site-badge">★</span>' : ''}
-                <span class="shortcut-ext-initials">${initials}</span>
-              </div>
-              <div class="shortcut-ext-details">
-                <span class="shortcut-ext-title">${shortcut.title}</span>
-                <span class="shortcut-ext-url">${new URL(shortcut.url).pathname}</span>
-              </div>
-            </a>
-          </div>
-        `;
-      });
-
-      shortcutsHtml += '</div>';
-      
-      // Set shortcuts content
-      shortcutsContainer.innerHTML = shortcutsHtml;
+    if (!response || !response.shortcuts) {
+      container.innerHTML = '<p class="shortcut-ext-empty">No shortcuts found</p>';
+      return;
+    }
     
+    // Filter shortcuts for current domain
+    const domainShortcuts = response.shortcuts.filter(s => 
+      s.domains && s.domains.length && 
+      s.domains.some(domain => isDomainMatch(domain, currentDomain))
+    );
+    
+    // Get domain-agnostic shortcuts
+    const generalShortcuts = response.shortcuts.filter(s =>
+      !s.domains || !s.domains.length
+    );
+    
+    // Combine with domain-specific first
+    const shortcuts = [...domainShortcuts, ...generalShortcuts];
+    
+    if (shortcuts.length === 0) {
+      container.innerHTML = '<p class="shortcut-ext-empty">No shortcuts found for this site</p>';
+      return;
+    }
+    
+    // Build HTML safely
+    let html = '<div class="shortcut-ext-grid">';
+    shortcuts.forEach(shortcut => {
+      if (!shortcut.title || !shortcut.url) return;
+      
+      // Safely encode values
+      const title = escapeHTML(shortcut.title);
+      const url = escapeHTML(shortcut.url);
+      const initials = getInitials(shortcut.title);
+      const bgColor = getColorFromText(shortcut.title);
+      const isSiteSpecific = shortcut.domains && shortcut.domains.some(domain => 
+        isDomainMatch(domain, currentDomain)
+      );
+      
+      let urlPath = '';
+      try {
+        urlPath = escapeHTML(new URL(shortcut.url).pathname);
+      } catch (e) {
+        urlPath = '/';
+      }
+      
+      html += `
+        <div class="shortcut-ext-item${isSiteSpecific ? ' site-specific' : ''}" data-title="${title}" data-url="${url}">
+          <a href="${url}" class="shortcut-ext-link">
+            <div class="shortcut-ext-icon-wrapper" style="background-color: ${bgColor}">
+              ${isSiteSpecific ? '<span class="site-badge">★</span>' : ''}
+              <span class="shortcut-ext-initials">${initials}</span>
+            </div>
+            <div class="shortcut-ext-details">
+              <span class="shortcut-ext-title">${title}</span>
+              <span class="shortcut-ext-url">${urlPath}</span>
+            </div>
+          </a>
+        </div>
+      `;
+    });
+    html += '</div>';
+    
+    // Update container
+    container.innerHTML = html;
+    
+    // Add click handlers for shortcuts
+    container.querySelectorAll('.shortcut-ext-link').forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const url = link.getAttribute('href');
+        if (url) {
+          // Validate URL before opening
+          chrome.runtime.sendMessage({action: "validateUrl", url}, (response) => {
+            if (response && response.isValid) {
+              window.location.href = url;
+            }
+          });
+        }
+      });
+    });
   });
 }
 
-// Check if shortcuts exist for this domain before injecting UI
+/**
+ * Escape HTML to prevent XSS
+ * @param {string} str - String to escape
+ * @returns {string} Escaped string
+ */
+function escapeHTML(str) {
+  if (!str) return '';
+  return str.replace(/[&<>"']/g, (match) => {
+    const replacements = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    };
+    return replacements[match];
+  });
+}
+
+/**
+ * Check if shortcuts exist for this domain
+ * @returns {Promise<boolean>} Whether to inject UI
+ */
 function shouldInjectUI() {
   return new Promise(resolve => {
     const currentDomain = getCurrentDomain();
     chrome.runtime.sendMessage({action: "getShortcuts"}, (response) => {
-      // Only inject if there are shortcuts (either domain-specific or general)
       if (response && response.shortcuts && response.shortcuts.length > 0) {
         const hasRelevantShortcuts = response.shortcuts.some(s => 
           !s.domains || !s.domains.length || // General shortcuts
-          s.domains.some(domain => isDomainMatch(domain, currentDomain)) // Domain-specific
+          s.domains.some(domain => isDomainMatch(domain, currentDomain))
         );
         resolve(hasRelevantShortcuts);
       } else {
@@ -686,6 +614,10 @@ function shouldInjectUI() {
   });
 }
 
+/**
+ * Check if current domain is blacklisted
+ * @returns {Promise<boolean>} Whether domain is blacklisted
+ */
 function isBlacklistedDomain() {
   return new Promise(resolve => {
     const currentDomain = getCurrentDomain();
@@ -696,40 +628,31 @@ function isBlacklistedDomain() {
   });
 }
 
-// Initialize the panel when the page is fully loaded
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', async () => {
-    if (!(await isBlacklistedDomain()) && await shouldInjectUI()) {
-      createShortcutPanel();
-      loadShortcuts(); // Load shortcuts when the page is fully loaded
-    }
-  });
-} else {
-  Promise.all([isBlacklistedDomain(), shouldInjectUI()])
-    .then(([isBlacklisted, shouldInject]) => {
-      if (!isBlacklisted && shouldInject) {
-        createShortcutPanel();
-        loadShortcuts(); // Load shortcuts when the page is fully loaded
-      }
-    });
-}
+// ===== INITIALIZATION =====
 
-// Add keyboard shortcut to toggle panel (Alt+Shift+S)
+// Setup keyboard shortcut handler (just once!)
 document.addEventListener('keydown', (e) => {
   if (e.altKey && e.shiftKey && e.key === 'S') {
     const panel = document.getElementById('shortcut-ext-panel');
-    if (panel && panel.classList.contains('shortcut-ext-expanded')) {
-      panel.classList.add('shortcut-ext-collapsed');
-      loadShortcuts();
+    if (panel) {
+      togglePanel();
     }
   }
 });
 
-// First, get premium status before creating the panel
-function isPremiumUser() {
-  return new Promise(resolve => {
-    chrome.storage.sync.get(['premiumStatus'], (result) => {
-      resolve(result.premiumStatus && result.premiumStatus.active === true);
-    });
+// Initialize panel when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', async () => {
+    if (!(await isBlacklistedDomain()) && await shouldInjectUI()) {
+      createShortcutPanel();
+    }
   });
+} else {
+  // If DOM already loaded
+  Promise.all([isBlacklistedDomain(), shouldInjectUI()])
+    .then(([isBlacklisted, shouldInject]) => {
+      if (!isBlacklisted && shouldInject) {
+        createShortcutPanel();
+      }
+    });
 }
