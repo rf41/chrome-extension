@@ -1872,54 +1872,53 @@ function refreshLicense() {
 
 // Function to deactivate the license using official API
 function deactivateLicense() {
-  if (confirm('Are you sure you want to deactivate your premium license? This will revert you to the free version with limited features.')) {
-    chrome.storage.sync.get(['premiumStatus'], (result) => {
-      const premiumData = result.premiumStatus || {};
-      const licenseKey = premiumData.licenseKey;
-      
-      if (!licenseKey) {
-        // No license to deactivate
-        chrome.storage.sync.remove(['premiumStatus'], () => {
-          customStatus.innerHTML = `<div style="color: orange;">License deactivated. You're now using the free version.</div>`;
-          
-          // Refresh the page after a short delay
-          setTimeout(() => {
-            window.location.reload();
-          }, 1500);
-        });
-        return;
-      }
-      
-      // Show loading message
-      customStatus.innerHTML = `<div style="color: blue;">Deactivating license...</div>`;
-      
-      // Use the helper function to make the API request
-      makeLicenseApiRequest(LICENSE_API_CONFIG.endpoints.deactivate, licenseKey)
-        .then(data => {
-          // Remove local license data 
-          chrome.storage.sync.remove(['premiumStatus'], () => {
-            if (data.success === true) {
-              customStatus.innerHTML = `<div style="color: orange;">License deactivated successfully. You're now using the free version.</div>`;
-            } else {
-              customStatus.innerHTML = `<div style="color: orange;">License deactivated locally. You're now using the free version.</div>`;
-              console.warn('Remote deactivation failed:', data.message);
-            }
-            
-            // IMPORTANT: Refresh the page IMMEDIATELY without updating UI in between
-            // This prevents "deleted shortcut" notifications from appearing
-            window.location.reload();
-          });
-        })
-        .catch(error => {
-          console.error('License deactivation error:', error);
-          // Still remove local license data even if API call fails
-          chrome.storage.sync.remove(['premiumStatus'], () => {
-            customStatus.innerHTML = `<div style="color: orange;">License deactivated locally. You're now using the free version.</div>`;
-            
-            // IMPORTANT: Refresh the page IMMEDIATELY without updating UI in between
-            window.location.reload();
-          });
-        });
+  if (!confirm('Are you sure you want to deactivate your premium license? This will revert you to the free version with limited features.')) {
+    return; // User cancelled the operation
+  }
+  
+  chrome.storage.sync.get(['premiumStatus'], (result) => {
+    const premiumData = result.premiumStatus || {};
+    const licenseKey = premiumData.licenseKey;
+    
+    // Show processing message
+    showStatusMessage('Deactivating license...', 'blue');
+    
+    // If no license key exists, just remove local data
+    if (!licenseKey) {
+      removeLicenseLocally('License deactivated. You\'re now using the free version.', 'orange');
+      return;
+    }
+    
+    // Attempt to deactivate with server
+    makeLicenseApiRequest(LICENSE_API_CONFIG.endpoints.deactivate, licenseKey)
+      .then(data => {
+        const message = data.success === true 
+          ? 'License deactivated successfully. You\'re now using the free version.'
+          : 'License deactivated locally. You\'re now using the free version.';
+        
+        if (!data.success) {
+          console.warn('Remote deactivation failed:', data.message);
+        }
+        
+        removeLicenseLocally(message, 'orange');
+      })
+      .catch(error => {
+        console.error('License deactivation error:', error);
+        removeLicenseLocally('License deactivated locally. You\'re now using the free version.', 'orange');
+      });
+  });
+  
+  // Helper function to show status messages
+  function showStatusMessage(message, color) {
+    customStatus.innerHTML = `<div style="color: ${color};">${message}</div>`;
+  }
+  
+  // Helper function to remove license data and refresh the page
+  function removeLicenseLocally(message, color) {
+    chrome.storage.sync.remove(['premiumStatus'], () => {
+      showStatusMessage(message, color);
+      // Refresh page immediately to prevent "deleted shortcut" notifications
+      window.location.reload();
     });
   }
 }
