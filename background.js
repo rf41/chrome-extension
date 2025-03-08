@@ -175,37 +175,81 @@ chrome.commands.onCommand.addListener(async (command) => {
 
 // Message handler
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === "getShortcuts") {
-    getShortcuts()
-      .then(shortcuts => sendResponse({shortcuts}))
-      .catch(error => {
-        console.error("Error retrieving shortcuts:", error);
-        sendResponse({error: "Failed to retrieve shortcuts"});
-      });
-    return true; // Required for async response
-  } 
-  else if (message.action === "openOptions") {
-    try {
-      chrome.runtime.openOptionsPage();
-      sendResponse({success: true});
-    } catch (error) {
-      console.error("Failed to open options page:", error);
-      sendResponse({error: "Failed to open options page"});
-    }
+  // Validate message structure
+  if (!message || typeof message !== 'object' || !message.action) {
+    console.error("Invalid message format received");
+    sendResponse({success: false, error: "Invalid message format"});
     return true;
   }
-  else if (message.action === "validateUrl") {
-    try {
-      const url = message.url;
-      const valid = isValidUrl(url);
-      const reason = valid ? "" : "URL contains suspicious patterns or is improperly formatted";
+
+  switch (message.action) {
+    case "getShortcuts":
+      getShortcuts()
+        .then(shortcuts => sendResponse({success: true, shortcuts}))
+        .catch(error => {
+          console.error("Error retrieving shortcuts:", error);
+          sendResponse({
+            success: false, 
+            error: "Failed to retrieve shortcuts",
+            details: error.message
+          });
+        });
+      return true; // Required for async response
+    
+    case "openOptions":
+      try {
+        chrome.runtime.openOptionsPage();
+        sendResponse({success: true});
+      } catch (error) {
+        console.error("Failed to open options page:", error);
+        sendResponse({
+          success: false, 
+          error: "Failed to open options page",
+          details: error.message
+        });
+      }
+      return true;
+    
+    case "validateUrl":
+      try {
+        // Ensure URL is provided
+        if (!message.url || typeof message.url !== 'string') {
+          sendResponse({
+            success: false, 
+            isValid: false, 
+            error: "No URL provided or invalid URL format"
+          });
+          return true;
+        }
+        
+        const url = message.url;
+        const valid = isValidUrl(url);
+        const reason = valid ? "" : "URL contains suspicious patterns or is improperly formatted";
+        
+        sendResponse({
+          success: true,
+          isValid: valid, 
+          reason: reason
+        });
+      } catch (error) {
+        console.error("URL validation error:", error);
+        sendResponse({
+          success: false,
+          isValid: false, 
+          error: "Error validating URL",
+          details: error.message
+        });
+      }
+      return true;
       
-      sendResponse({isValid: valid, reason: reason});
-    } catch (error) {
-      console.error("URL validation error:", error);
-      sendResponse({isValid: false, reason: "Error validating URL"});
-    }
-    return true;
+    default:
+      console.warn("Unknown message action received:", message.action);
+      sendResponse({
+        success: false, 
+        error: "Unknown action type",
+        supportedActions: ["getShortcuts", "openOptions", "validateUrl"]
+      });
+      return true;
   }
 });
 
