@@ -1558,20 +1558,33 @@ function showShortcutConfigGuide() {
 
 // Add this function to show modals - the missing piece!
 function showModal(title, content) {
+  // Remove any existing modals first
+  const existingModal = document.querySelector('.guide-modal');
+  if (existingModal) {
+    existingModal.parentNode.removeChild(existingModal);
+  }
+  
   // Create modal overlay
   const modal = document.createElement('div');
   modal.className = 'guide-modal';
+  modal.setAttribute('role', 'dialog');
+  modal.setAttribute('aria-labelledby', 'modalTitle');
+  modal.setAttribute('aria-describedby', 'modalContent');
   
   // Create modal content
   modal.innerHTML = `
     <div class="guide-modal-content">
       <div class="guide-modal-header">
-        <h2>${title}</h2>
-        <button class="guide-close-btn">&times;</button>
+        <h2 id="modalTitle">${title}</h2>
+        <button class="guide-close-btn" aria-label="Close">&times;</button>
       </div>
       
-      <div class="guide-modal-body">
+      <div class="guide-modal-body" id="modalContent">
         ${content}
+      </div>
+      
+      <div class="guide-modal-footer">
+        <button class="guide-ok-btn">OK</button>
       </div>
     </div>
   `;
@@ -1579,16 +1592,54 @@ function showModal(title, content) {
   // Add to document
   document.body.appendChild(modal);
   
+  // Focus trap for accessibility
+  const focusableElements = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+  const firstElement = focusableElements[0];
+  const lastElement = focusableElements[focusableElements.length - 1];
+  
+  // Focus the first element
+  firstElement.focus();
+  
   // Close button functionality
   const closeBtn = modal.querySelector('.guide-close-btn');
-  closeBtn.addEventListener('click', () => {
+  const okBtn = modal.querySelector('.guide-ok-btn');
+  
+  const closeModal = () => {
     document.body.removeChild(modal);
-  });
+  };
+  
+  closeBtn.addEventListener('click', closeModal);
+  okBtn.addEventListener('click', closeModal);
   
   // Close when clicking outside
   modal.addEventListener('click', (e) => {
     if (e.target === modal) {
-      document.body.removeChild(modal);
+      closeModal();
+    }
+  });
+  
+  // Close on escape key
+  document.addEventListener('keydown', function handleEscapeKey(e) {
+    if (e.key === 'Escape') {
+      closeModal();
+      document.removeEventListener('keydown', handleEscapeKey);
+    }
+  });
+  
+  // Handle tab key for focus trap
+  modal.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') {
+      if (e.shiftKey) {
+        if (document.activeElement === firstElement) {
+          lastElement.focus();
+          e.preventDefault();
+        }
+      } else {
+        if (document.activeElement === lastElement) {
+          firstElement.focus();
+          e.preventDefault();
+        }
+      }
     }
   });
 }
