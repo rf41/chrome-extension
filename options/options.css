@@ -63,6 +63,12 @@ body {
   .delete-btn:hover {
     background-color: #bd2130;
   }
+  .deactivated-btn {
+    background-color: #dc3545;
+  }
+  .deactivated-btn:hover {
+    background-color: #bd2130;
+  }
   .kbd-input {
     width: 150px;
     text-align: center;

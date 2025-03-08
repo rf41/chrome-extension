@@ -1613,7 +1613,7 @@ function addLicenseManagementSection() {
         </div>
         <div id="licenseActionButtons" style="margin-top: 15px; display: none;">
           <button id="refreshLicenseBtn" class="primary-btn">Refresh License</button>
-          <button id="deactivateLicenseBtn" class="delete-btn">Deactivate License</button>
+          <button id="deactivateLicenseBtn" class="deactivated-btn">Deactivate License</button>
         </div>
       </div>
     `;
@@ -1827,15 +1827,12 @@ function deactivateLicense() {
       if (!licenseKey) {
         // No license to deactivate
         chrome.storage.sync.remove(['premiumStatus'], () => {
-          isPremiumUser = false;
-          displayPremiumStatus();
-          loadCustomShortcuts();
-          updateLicenseDetails();
-          
           customStatus.innerHTML = `<div style="color: orange;">License deactivated. You're now using the free version.</div>`;
+          
+          // Refresh the page after a short delay
           setTimeout(() => {
-            customStatus.textContent = "";
-          }, 4000);
+            window.location.reload();
+          }, 1500);
         });
         return;
       }
@@ -1843,57 +1840,33 @@ function deactivateLicense() {
       // Show loading message
       customStatus.innerHTML = `<div style="color: blue;">Deactivating license...</div>`;
       
-      // Use the official License Manager for WooCommerce REST API
-      const apiUrl = `https://ridwancard.my.id/wp-json/lmfwc/v2/licenses/deactivate/${licenseKey}`;
-      const consumerKey = 'ck_9eeb9517833188c72cdf4d94dac63f6cbc18ba3c';
-      const consumerSecret = 'cs_6ac366de7eae5804493d735e58d08b85db8944cb';
-      
-      // Basic authentication for WooCommerce API
-      const credentials = btoa(`${consumerKey}:${consumerSecret}`);
-      
-      fetch(apiUrl, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Basic ${credentials}`,
-          'Content-Type': 'application/json'
-        }
-      })
-      .then(response => response.json())
-      .then(data => {
-        // Remove local license data
-        chrome.storage.sync.remove(['premiumStatus'], () => {
-          isPremiumUser = false;
-          displayPremiumStatus();
-          loadCustomShortcuts();
-          updateLicenseDetails();
-          
-          if (data.success === true) {
-            customStatus.innerHTML = `<div style="color: orange;">License deactivated successfully. You're now using the free version.</div>`;
-          } else {
+      // Use the helper function to make the API request
+      makeLicenseApiRequest(LICENSE_API_CONFIG.endpoints.deactivate, licenseKey)
+        .then(data => {
+          // Remove local license data 
+          chrome.storage.sync.remove(['premiumStatus'], () => {
+            if (data.success === true) {
+              customStatus.innerHTML = `<div style="color: orange;">License deactivated successfully. You're now using the free version.</div>`;
+            } else {
+              customStatus.innerHTML = `<div style="color: orange;">License deactivated locally. You're now using the free version.</div>`;
+              console.warn('Remote deactivation failed:', data.message);
+            }
+            
+            // IMPORTANT: Refresh the page IMMEDIATELY without updating UI in between
+            // This prevents "deleted shortcut" notifications from appearing
+            window.location.reload();
+          });
+        })
+        .catch(error => {
+          console.error('License deactivation error:', error);
+          // Still remove local license data even if API call fails
+          chrome.storage.sync.remove(['premiumStatus'], () => {
             customStatus.innerHTML = `<div style="color: orange;">License deactivated locally. You're now using the free version.</div>`;
-            console.warn('Remote deactivation failed:', data.message);
-          }
-          
-          setTimeout(() => {
-            customStatus.textContent = "";
-          }, 4000);
+            
+            // IMPORTANT: Refresh the page IMMEDIATELY without updating UI in between
+            window.location.reload();
+          });
         });
-      })
-      .catch(error => {
-        console.error('License deactivation error:', error);
-        // Still remove local license data even if API call fails
-        chrome.storage.sync.remove(['premiumStatus'], () => {
-          isPremiumUser = false;
-          displayPremiumStatus();
-          loadCustomShortcuts();
-          updateLicenseDetails();
-          
-          customStatus.innerHTML = `<div style="color: orange;">License deactivated locally. You're now using the free version.</div>`;
-          setTimeout(() => {
-            customStatus.textContent = "";
-          }, 4000);
-        });
-      });
     });
   }
 }
