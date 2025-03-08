@@ -1797,76 +1797,61 @@ function refreshLicense() {
     // Show loading message
     customStatus.innerHTML = `<div style="color: blue;">Refreshing license status...</div>`;
     
-    // Use the official License Manager for WooCommerce REST API
-    // The license key is part of the URL path
-    const apiUrl = `https://ridwancard.my.id/wp-json/lmfwc/v2/licenses/validate/${licenseKey}`;
-    const consumerKey = 'ck_9eeb9517833188c72cdf4d94dac63f6cbc18ba3c';
-    const consumerSecret = 'cs_6ac366de7eae5804493d735e58d08b85db8944cb';
-    
-    // Basic authentication for WooCommerce API
-    const credentials = btoa(`${consumerKey}:${consumerSecret}`);
-    
-    fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Basic ${credentials}`,
-        'Content-Type': 'application/json'
-      }
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.success === true) {
-        // Update stored license information with latest data
-        chrome.storage.sync.set({
-          'premiumStatus': {
-            active: true,
-            activatedOn: premiumData.activatedOn || new Date().toISOString(),
-            licenseKey: licenseKey,
-            expiresOn: data.data?.expiresAt || null,
-            lastVerified: new Date().toISOString(),
-            timesActivated: data.data?.timesActivated || 1,
-            timesActivatedMax: data.data?.timesActivatedMax || null
-          }
-        }, () => {
-          // Update UI
-          updateLicenseDetails();
-          displayPremiumStatus();
-          
-          // Show success message
-          customStatus.innerHTML = `<div style="color: green;">License refreshed successfully!</div>`;
-          setTimeout(() => {
-            customStatus.textContent = "";
-          }, 4000);
-        });
-      } else {
-        // License is no longer valid
-        chrome.storage.sync.set({
-          'premiumStatus': {
-            active: false,
-            licenseKey: licenseKey,
-            deactivatedOn: new Date().toISOString(),
-            reason: data.message || 'License is no longer valid'
-          }
-        }, () => {
-          isPremiumUser = false;
-          updateLicenseDetails();
-          displayPremiumStatus();
-          loadCustomShortcuts();
-          
-          customStatus.innerHTML = `<div style="color: red;">License is no longer valid: ${data.message || 'Please renew your license.'}</div>`;
-          setTimeout(() => {
-            customStatus.textContent = "";
-          }, 5000);
-        });
-      }
-    })
-    .catch(error => {
-      console.error('License refresh error:', error);
-      customStatus.innerHTML = '<div style="color: red;">Error connecting to license server. Please try again later.</div>';
-      setTimeout(() => {
-        customStatus.textContent = "";
-      }, 4000);
-    });
+    // Use the existing LICENSE_API_CONFIG to avoid redundancy
+    makeLicenseApiRequest(LICENSE_API_CONFIG.endpoints.validate, licenseKey)
+      .then(data => {
+        if (data.success === true) {
+          // Update stored license information with latest data
+          chrome.storage.sync.set({
+            'premiumStatus': {
+              active: true,
+              activatedOn: premiumData.activatedOn || new Date().toISOString(),
+              licenseKey: licenseKey,
+              expiresOn: data.data?.expiresAt || null,
+              lastVerified: new Date().toISOString(),
+              timesActivated: data.data?.timesActivated || 1,
+              timesActivatedMax: data.data?.timesActivatedMax || null
+            }
+          }, () => {
+            // Update UI
+            updateLicenseDetails();
+            displayPremiumStatus();
+            
+            // Show success message
+            customStatus.innerHTML = `<div style="color: green;">License refreshed successfully!</div>`;
+            setTimeout(() => {
+              customStatus.textContent = "";
+            }, 4000);
+          });
+        } else {
+          // License is no longer valid
+          chrome.storage.sync.set({
+            'premiumStatus': {
+              active: false,
+              licenseKey: licenseKey,
+              deactivatedOn: new Date().toISOString(),
+              reason: data.message || 'License is no longer valid'
+            }
+          }, () => {
+            isPremiumUser = false;
+            updateLicenseDetails();
+            displayPremiumStatus();
+            loadCustomShortcuts();
+            
+            customStatus.innerHTML = `<div style="color: red;">License is no longer valid: ${data.message || 'Please renew your license.'}</div>`;
+            setTimeout(() => {
+              customStatus.textContent = "";
+            }, 5000);
+          });
+        }
+      })
+      .catch(error => {
+        console.error('License refresh error:', error);
+        customStatus.innerHTML = '<div style="color: red;">Error connecting to license server. Please try again later.</div>';
+        setTimeout(() => {
+          customStatus.textContent = "";
+        }, 4000);
+      });
   });
 }
 
