@@ -2,13 +2,14 @@
   "manifest_version": 3,
   "name": "Quick Site Shortcuts",
   "version": "1.0",
-  "description": "Quick Site Shortcuts gives you instant access to your most used page in a websites. Create domain-specific shortcuts, use keyboard commands, and navigate with a convenient floating panel",
+  "description": "Quick Site Shortcuts gives you instant access to your most used pages in websites. Create domain-specific shortcuts and navigate with keyboard commands.",
   "background": {
     "service_worker": "background.js"
   },
-  "permissions": ["storage", "commands", "activeTab", "tabs", "notifications", "identity"],
-  "host_permissions": [
-    "http://localhost/wordpress/*"
+  "permissions": [
+    "storage",  
+    "commands", 
+    "activeTab"
   ],
   "icons": {
     "16": "icons/icon16.png",
@@ -18,7 +19,7 @@
   "options_page": "options/options.html",
   "action": {
     "default_popup": "popup/popup.html",
-    "default_title": "Custom Shortcut",
+    "default_title": "Quick Site Shortcuts",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
