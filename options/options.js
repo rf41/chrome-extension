@@ -1073,13 +1073,13 @@ function initDomainAutoUpdate() {
     
     // Add visual feedback
     if (domain) {
-      // Remove and re-add the animation class to trigger animation
+      // Use CSS transitions rather than setTimeout for better performance
       domainInput.classList.remove('domain-updated');
-      // Use setTimeout to ensure the class removal is processed before adding it back
-      setTimeout(() => {
+      // Using requestAnimationFrame for better performance and synchronization with browser rendering
+      requestAnimationFrame(() => {
         domainInput.classList.add('valid-domain');
         domainInput.classList.add('domain-updated');
-      }, 10);
+      });
     } else {
       domainInput.classList.remove('valid-domain');
       domainInput.classList.remove('domain-updated');
@@ -1094,7 +1094,7 @@ function initDomainAutoUpdate() {
     // Update domain with animation
     updateDomain(domain);
     
-    console.log('URL changed:', url, '→ Domain:', domain); // Debugging
+    // Remove console logging for production code
   });
   
   // Also handle blur event for final validation and URL correction
@@ -1113,7 +1113,9 @@ function initDomainAutoUpdate() {
         const domain = new URL(url).hostname;
         updateDomain(domain);
       } catch (e) {
-        // Leave it as is if URL is invalid
+        // Silent error handling to avoid console errors
+        // Use a more user-friendly approach by clearing the domain
+        updateDomain('');
       }
     }
   });
