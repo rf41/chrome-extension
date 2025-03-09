@@ -1373,10 +1373,6 @@ function showPremiumUpgradeModal() {
 // License API Configuration - Keep this section as the single source of truth
 const LICENSE_API_CONFIG = {
   baseUrl: 'https://ridwancard.my.id',
-  credentials: {
-    consumerKey: 'ck_9eeb9517833188c72cdf4d94dac63f6cbc18ba3c',
-    consumerSecret: 'cs_6ac366de7eae5804493d735e58d08b85db8944cb'
-  },
   endpoints: {
     activate: '/wp-json/lmfwc/v2/licenses/activate/',
     validate: '/wp-json/lmfwc/v2/licenses/validate/',
@@ -1384,45 +1380,30 @@ const LICENSE_API_CONFIG = {
   }
 };
 
-// Helper function to create authorization header - Keep this
-function getAuthorizationHeader() {
-  return btoa(`${LICENSE_API_CONFIG.credentials.consumerKey}:${LICENSE_API_CONFIG.credentials.consumerSecret}`);
-}
-
-// Helper function to make license API requests - Keep this
+// Helper function to make license API requests - Modified to use background script for security
 function makeLicenseApiRequest(endpoint, licenseKey) {
-  const url = `${LICENSE_API_CONFIG.baseUrl}${endpoint}${licenseKey}`;
-  
-  return fetch(url, {
-    method: 'GET',
-    headers: {
-      'Authorization': `Basic ${getAuthorizationHeader()}`,
-      'Content-Type': 'application/json'
-    }
-  })
-  .then(response => {
-    if (!response.ok) {
-      throw new Error(`Server responded with status: ${response.status}`);
-    }
-    return response.text().then(text => {
-      try {
-        if (text.includes('<b>Warning</b>') || text.includes('<br />')) {
-          const jsonMatch = text.match(/(\{.*\})/);
-          if (jsonMatch && jsonMatch[1]) {
-            return JSON.parse(jsonMatch[1]);
-          }
-          throw new Error('Server returned HTML error with no valid JSON');
-        }
-        return JSON.parse(text);
-      } catch (e) {
-        console.error('Failed to parse response:', e);
-        throw new Error('Failed to parse server response');
+  // Use message passing to delegate API calls to background service worker
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage({
+      action: "licenseApiRequest",
+      endpoint: endpoint,
+      licenseKey: licenseKey
+    }, response => {
+      if (chrome.runtime.lastError) {
+        reject(chrome.runtime.lastError);
+        return;
+      }
+      
+      if (response.error) {
+        reject(new Error(response.error));
+      } else {
+        resolve(response.data);
       }
     });
   });
 }
 
-// KEEP THIS ONE: Function to verify license key
+// Function to verify license key - Updated to use more secure approach
 function verifyLicenseKey(licenseKey) {
   const licenseMessage = document.getElementById('licenseMessage');
   licenseMessage.innerHTML = '<p style="color: blue;">Verifying license...</p>';
@@ -1446,7 +1427,6 @@ function verifyLicenseKey(licenseKey) {
           }
         }, () => {
           // Refresh the page immediately after setting the storage
-          // This ensures all UI components are properly updated with new premium status
           setTimeout(() => {
             window.location.reload();
           }, 1000);
@@ -1464,6 +1444,137 @@ function verifyLicenseKey(licenseKey) {
     });
 }
 
+// Function to refresh the license status - Updated to use more secure approach
+function refreshLicense() {
+  chrome.storage.sync.get(['premiumStatus'], (result) => {
+    const premiumData = result.premiumStatus || {};
+    const licenseKey = premiumData.licenseKey;
+    
+    if (!licenseKey) {
+      customStatus.innerHTML = `<div style="color: red;">No license key found. Please add a license first.</div>`;
+      return;
+    }
+    
+    // Show loading message
+    customStatus.innerHTML = `<div style="color: blue;">Refreshing license status...</div>`;
+    
+    // Use the updated API request function
+    makeLicenseApiRequest(LICENSE_API_CONFIG.endpoints.validate, licenseKey)
+      .then(data => {
+        if (data.success === true) {
+          // Update stored license information with latest data
+          chrome.storage.sync.set({
+            'premiumStatus': {
+              active: true,
+              activatedOn: premiumData.activatedOn || new Date().toISOString(),
+              licenseKey: licenseKey,
+              expiresOn: data.data?.expiresAt || null,
+              lastVerified: new Date().toISOString(),
+              timesActivated: data.data?.timesActivated || 1,
+              timesActivatedMax: data.data?.timesActivatedMax || null
+            }
+          }, () => {
+            // Update UI
+            updateLicenseDetails();
+            displayPremiumStatus();
+            
+            // Show success message
+            customStatus.innerHTML = `<div style="color: green;">License refreshed successfully!</div>`;
+            setTimeout(() => {
+              customStatus.textContent = "";
+            }, 4000);
+          });
+        } else {
+          // License is no longer valid
+          chrome.storage.sync.set({
+            'premiumStatus': {
+              active: false,
+              licenseKey: licenseKey,
+              deactivatedOn: new Date().toISOString(),
+              reason: data.message || 'License is no longer valid'
+            }
+          }, () => {
+            isPremiumUser = false;
+            updateLicenseDetails();
+            displayPremiumStatus();
+            loadCustomShortcuts();
+            
+            customStatus.innerHTML = `<div style="color: red;">License is no longer valid: ${data.message || 'Please renew your license.'}</div>`;
+            setTimeout(() => {
+              customStatus.textContent = "";
+            }, 5000);
+          });
+        }
+      })
+      .catch(error => {
+        console.error('License refresh error:', error);
+        customStatus.innerHTML = '<div style="color: red;">Error connecting to license server. Please try again later.</div>';
+        setTimeout(() => {
+          customStatus.textContent = "";
+        }, 4000);
+      });
+  });
+}
+
+// Function to mask license key for display (show only last 4 characters)
+function maskLicenseKey(key) {
+  if (!key || key === 'Unknown') return 'Unknown';
+  if (key.length <= 4) return key;
+  return '••••••••' + key.slice(-4);
+}
+
+// Function to deactivate the license using official API
+function deactivateLicense() {
+  if (!confirm('Are you sure you want to deactivate your premium license? This will revert you to the free version with limited features.')) {
+    return; // User cancelled the operation
+  }
+  
+  chrome.storage.sync.get(['premiumStatus'], (result) => {
+    const premiumData = result.premiumStatus || {};
+    const licenseKey = premiumData.licenseKey;
+    
+    // Show processing message
+    showStatusMessage('Deactivating license...', 'blue');
+    
+    // If no license key exists, just remove local data
+    if (!licenseKey) {
+      removeLicenseLocally('License deactivated. You\'re now using the free version.', 'orange');
+      return;
+    }
+    
+    // Attempt to deactivate with server
+    makeLicenseApiRequest(LICENSE_API_CONFIG.endpoints.deactivate, licenseKey)
+      .then(data => {
+        const message = data.success === true 
+          ? 'License deactivated successfully. You\'re now using the free version.'
+          : 'License deactivated locally. You\'re now using the free version.';
+        
+        if (!data.success) {
+          console.warn('Remote deactivation failed:', data.message);
+        }
+        
+        removeLicenseLocally(message, 'orange');
+      })
+      .catch(error => {
+        console.error('License deactivation error:', error);
+        removeLicenseLocally('License deactivated locally. You\'re now using the free version.', 'orange');
+      });
+  });
+  
+  // Helper function to show status messages
+  function showStatusMessage(message, color) {
+    customStatus.innerHTML = `<div style="color: ${color};">${message}</div>`;
+  }
+  
+  // Helper function to remove license data and refresh the page
+  function removeLicenseLocally(message, color) {
+    chrome.storage.sync.remove(['premiumStatus'], () => {
+      showStatusMessage(message, color);
+      // Refresh page immediately to prevent "deleted shortcut" notifications
+      window.location.reload();
+    });
+  }
+}
 
 //open shortcut setting page in Chrome
 document.getElementById('openShortcutsPage').addEventListener('click', () => {
@@ -1774,136 +1885,4 @@ function updateLicenseDetails() {
       }
     }
   });
-}
-
-// Function to mask license key for display (show only last 4 characters)
-function maskLicenseKey(key) {
-  if (!key || key === 'Unknown') return 'Unknown';
-  if (key.length <= 4) return key;
-  return '••••••••' + key.slice(-4);
-}
-
-// Function to refresh the license status using official API
-function refreshLicense() {
-  chrome.storage.sync.get(['premiumStatus'], (result) => {
-    const premiumData = result.premiumStatus || {};
-    const licenseKey = premiumData.licenseKey;
-    
-    if (!licenseKey) {
-      customStatus.innerHTML = `<div style="color: red;">No license key found. Please add a license first.</div>`;
-      return;
-    }
-    
-    // Show loading message
-    customStatus.innerHTML = `<div style="color: blue;">Refreshing license status...</div>`;
-    
-    // Use the existing LICENSE_API_CONFIG to avoid redundancy
-    makeLicenseApiRequest(LICENSE_API_CONFIG.endpoints.validate, licenseKey)
-      .then(data => {
-        if (data.success === true) {
-          // Update stored license information with latest data
-          chrome.storage.sync.set({
-            'premiumStatus': {
-              active: true,
-              activatedOn: premiumData.activatedOn || new Date().toISOString(),
-              licenseKey: licenseKey,
-              expiresOn: data.data?.expiresAt || null,
-              lastVerified: new Date().toISOString(),
-              timesActivated: data.data?.timesActivated || 1,
-              timesActivatedMax: data.data?.timesActivatedMax || null
-            }
-          }, () => {
-            // Update UI
-            updateLicenseDetails();
-            displayPremiumStatus();
-            
-            // Show success message
-            customStatus.innerHTML = `<div style="color: green;">License refreshed successfully!</div>`;
-            setTimeout(() => {
-              customStatus.textContent = "";
-            }, 4000);
-          });
-        } else {
-          // License is no longer valid
-          chrome.storage.sync.set({
-            'premiumStatus': {
-              active: false,
-              licenseKey: licenseKey,
-              deactivatedOn: new Date().toISOString(),
-              reason: data.message || 'License is no longer valid'
-            }
-          }, () => {
-            isPremiumUser = false;
-            updateLicenseDetails();
-            displayPremiumStatus();
-            loadCustomShortcuts();
-            
-            customStatus.innerHTML = `<div style="color: red;">License is no longer valid: ${data.message || 'Please renew your license.'}</div>`;
-            setTimeout(() => {
-              customStatus.textContent = "";
-            }, 5000);
-          });
-        }
-      })
-      .catch(error => {
-        console.error('License refresh error:', error);
-        customStatus.innerHTML = '<div style="color: red;">Error connecting to license server. Please try again later.</div>';
-        setTimeout(() => {
-          customStatus.textContent = "";
-        }, 4000);
-      });
-  });
-}
-
-// Function to deactivate the license using official API
-function deactivateLicense() {
-  if (!confirm('Are you sure you want to deactivate your premium license? This will revert you to the free version with limited features.')) {
-    return; // User cancelled the operation
-  }
-  
-  chrome.storage.sync.get(['premiumStatus'], (result) => {
-    const premiumData = result.premiumStatus || {};
-    const licenseKey = premiumData.licenseKey;
-    
-    // Show processing message
-    showStatusMessage('Deactivating license...', 'blue');
-    
-    // If no license key exists, just remove local data
-    if (!licenseKey) {
-      removeLicenseLocally('License deactivated. You\'re now using the free version.', 'orange');
-      return;
-    }
-    
-    // Attempt to deactivate with server
-    makeLicenseApiRequest(LICENSE_API_CONFIG.endpoints.deactivate, licenseKey)
-      .then(data => {
-        const message = data.success === true 
-          ? 'License deactivated successfully. You\'re now using the free version.'
-          : 'License deactivated locally. You\'re now using the free version.';
-        
-        if (!data.success) {
-          console.warn('Remote deactivation failed:', data.message);
-        }
-        
-        removeLicenseLocally(message, 'orange');
-      })
-      .catch(error => {
-        console.error('License deactivation error:', error);
-        removeLicenseLocally('License deactivated locally. You\'re now using the free version.', 'orange');
-      });
-  });
-  
-  // Helper function to show status messages
-  function showStatusMessage(message, color) {
-    customStatus.innerHTML = `<div style="color: ${color};">${message}</div>`;
-  }
-  
-  // Helper function to remove license data and refresh the page
-  function removeLicenseLocally(message, color) {
-    chrome.storage.sync.remove(['premiumStatus'], () => {
-      showStatusMessage(message, color);
-      // Refresh page immediately to prevent "deleted shortcut" notifications
-      window.location.reload();
-    });
-  }
 }

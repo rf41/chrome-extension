@@ -173,7 +173,84 @@ chrome.commands.onCommand.addListener(async (command) => {
   }
 });
 
-// Message handler
+// License API credentials - stored securely in background context
+const API_CREDENTIALS = {
+  consumerKey: 'ck_9eeb9517833188c72cdf4d94dac63f6cbc18ba3c',
+  consumerSecret: 'cs_6ac366de7eae5804493d735e58d08b85db8944cb'
+};
+
+// Helper function for authorization
+function getAuthorizationHeader() {
+  return btoa(`${API_CREDENTIALS.consumerKey}:${API_CREDENTIALS.consumerSecret}`);
+}
+
+// Function to handle license API requests securely from the background
+async function handleLicenseApiRequest(message, sendResponse) {
+  try {
+    const { endpoint, licenseKey } = message;
+    const url = `https://ridwancard.my.id${endpoint}${licenseKey}`;
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Basic ${getAuthorizationHeader()}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Server responded with status: ${response.status}`);
+    }
+    
+    const text = await response.text();
+    let data;
+    
+    try {
+      if (text.includes('<b>Warning</b>') || text.includes('<br />')) {
+        const jsonMatch = text.match(/(\{.*\})/);
+        if (jsonMatch && jsonMatch[1]) {
+          data = JSON.parse(jsonMatch[1]);
+        } else {
+          throw new Error('Server returned HTML error with no valid JSON');
+        }
+      } else {
+        data = JSON.parse(text);
+      }
+    } catch (e) {
+      console.error('Failed to parse response:', e);
+      throw new Error('Failed to parse server response');
+    }
+    
+    sendResponse({ data });
+  } catch (error) {
+    console.error('License API request failed:', error);
+    sendResponse({ error: error.message });
+  }
+}
+
+// URL validation function for form validation
+function validateUrl(string) {
+  // Handle empty strings
+  if (!string || string.trim() === '') return false;
+  
+  // Add protocol if missing
+  let url = string.trim();
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = 'https://' + url;
+  }
+  
+  try { 
+    const urlObj = new URL(url);
+    // Additional validation - must have a valid hostname with at least one dot
+    return urlObj.hostname && urlObj.hostname.includes('.') && 
+           // Basic check that hostname follows domain name rules
+           /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9](\.[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9])+$/.test(urlObj.hostname);
+  } catch (_) {
+    return false;
+  }
+}
+
+// CONSOLIDATED message handler for all action types
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // Validate message structure
   if (!message || typeof message !== 'object' || !message.action) {
@@ -223,7 +300,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
         
         const url = message.url;
-        const valid = isValidUrl(url);
+        const valid = validateUrl(url);
         const reason = valid ? "" : "URL contains suspicious patterns or is improperly formatted";
         
         sendResponse({
@@ -242,12 +319,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
       return true;
       
+    case "licenseApiRequest":
+      // Handle license API requests
+      handleLicenseApiRequest(message, sendResponse);
+      return true; // Keep the message channel open for async response
+      
     default:
       console.warn("Unknown message action received:", message.action);
       sendResponse({
         success: false, 
         error: "Unknown action type",
-        supportedActions: ["getShortcuts", "openOptions", "validateUrl"]
+        supportedActions: ["getShortcuts", "openOptions", "validateUrl", "licenseApiRequest"]
       });
       return true;
   }
