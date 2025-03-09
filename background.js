@@ -4,7 +4,7 @@
  */
 
 // Default URL to open if none is saved
-const DEFAULT_URL = "https://example.com";
+const DEFAULT_URL = "chrome://newtab";
 
 // URL validation function
 function isValidUrl(urlString) {
