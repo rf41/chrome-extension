@@ -1,9 +1,9 @@
 /**
- * Options script for the Custom Shortcut Extension
+ * Options script for Smart Shortcut Panel
  * Handles saving and loading custom URLs and shortcuts
  */
 
-// DOM elements - dengan pengecekan keberadaan elemen
+
 const shortcutForm = document.getElementById('shortcutForm');
 const titleInput = document.getElementById('title');
 const shortcutUrlInput = document.getElementById('shortcutUrl');
@@ -11,7 +11,6 @@ const shortcutsBody = document.getElementById('shortcutsBody');
 const customStatus = document.getElementById('customStatus');
 const configureShortcutsBtn = document.getElementById('configureShortcutsBtn');
 
-// Variabel opsional yang mungkin tidak ada di semua versi UI
 const defaultTabBtn = document.getElementById('defaultTabBtn');
 const customTabBtn = document.getElementById('customTabBtn');
 const defaultTabContent = document.getElementById('defaultTabContent');
@@ -20,12 +19,9 @@ const urlInput = document.getElementById('urlInput');
 const saveBtn = document.getElementById('saveBtn');
 const defaultStatus = document.getElementById('defaultStatus');
 
-// Default URL
-const DEFAULT_URL = "chrome://newtab"; // Default to Chrome's New Tab page
-// Maximum number of custom shortcuts (limited by manifest)
+const DEFAULT_URL = "chrome://newtab"; 
 const MAX_SHORTCUTS = 3;
 
-// State for recording keyboard shortcuts
 let isRecording = false;
 let commandIdEditable = false;
 let currentShortcut = {
@@ -36,7 +32,6 @@ let currentShortcut = {
   key: ''
 };
 
-// Define available command IDs (must match manifest.json)
 const AVAILABLE_COMMANDS = [
     'shortcut-01',
     'shortcut-02', 
@@ -50,18 +45,16 @@ const AVAILABLE_COMMANDS = [
     'shortcut-10'
   ];
 
-const FREE_USER_LIMIT = 3; // Free users can only add 3 shortcuts per domain
-let isPremiumUser = false; // Default to free user
+const FREE_USER_LIMIT = 3;
+let isPremiumUser = false;
 
-const EXTENSION_ID = chrome.runtime.id; // Gets the current extension ID automatically
+const EXTENSION_ID = chrome.runtime.id; 
 
-// Function to get next available command Id
 function getNextAvailableCommandId() {
   return new Promise((resolve) => {
     chrome.storage.sync.get(['customShortcuts'], (result) => {
       const shortcuts = result.customShortcuts || [];
       
-      // Find first command ID that's not already in use
       const usedCommandIds = shortcuts.map(s => s.command);
       const availableId = AVAILABLE_COMMANDS.find(id => !usedCommandIds.includes(id));
       
@@ -70,12 +63,9 @@ function getNextAvailableCommandId() {
   });
 }
 
-// Improved URL validation function
 function isValidUrl(string) {
-  // Handle empty strings
   if (!string || string.trim() === '') return false;
   
-  // Add protocol if missing
   let url = string.trim();
   if (!url.startsWith('http://') && !url.startsWith('https://')) {
     url = 'https://' + url;
@@ -83,16 +73,13 @@ function isValidUrl(string) {
   
   try { 
     const urlObj = new URL(url);
-    // Additional validation - must have a valid hostname with at least one dot
     return urlObj.hostname && urlObj.hostname.includes('.') && 
-           // Basic check that hostname follows domain name rules
            /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9](\.[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9])+$/.test(urlObj.hostname);
   } catch (_) {
     return false;
   }
 }
 
-// Tab navigation
 if (defaultTabBtn && customTabBtn) {
   defaultTabBtn.addEventListener('click', () => {
     defaultTabBtn.classList.add('active');
@@ -109,33 +96,19 @@ if (defaultTabBtn && customTabBtn) {
   });
 }
 
-// Separate UI initialization and data filling
 document.addEventListener('DOMContentLoaded', async () => {
-  // Check premium status first
   await checkPremiumStatus();
   
-  // Display premium status in UI
   displayPremiumStatus();
-  
-  // Initialize UI
   initializeUI();
-  
-  // Debug commands
   setTimeout(debugCommands, 1000);
-  
-  // Load data
   loadData();
-  
-  // Initialize collapsible sections
   initCollapsibleSections();
-  
-  // Add license management section
   addLicenseManagementSection();
 });
 
-// Initialization UI elements
+
 function initializeUI() {
-  // Add handler for Configure Shortcuts button
   if (configureShortcutsBtn) {
     configureShortcutsBtn.addEventListener('click', () => {
       chrome.tabs.create({
@@ -143,38 +116,19 @@ function initializeUI() {
       });
     });
   }
-  
-  // Initialize guide button
+
   initGuideButton();
-  
-  // Prepare empty dropdown structure but don't fill it yet
   prepareCommandDropdown();
-  
-  // Check Chrome API support
   checkChromeAPIs();
-  
-  // Initialize table sorting
   initTableSorting();
-  
-  // Initialize domain auto-update
   initDomainAutoUpdate();
-  
-  // Enhance domain field with visual indicators
   enhanceDomainField();
-  
-  // Add domain restriction info
   createDomainRestrictionInfo();
-  
-  // Ensure domain field has proper appearance
   createDomainField();
-  
-  // Add license management section
   addLicenseManagementSection();
 }
 
-// Load data from storage
 function loadData() {
-  // Load URL data
   if (urlInput) {
     chrome.storage.sync.get(['customUrl'], (result) => {
       if (result.customUrl) {
@@ -184,38 +138,30 @@ function loadData() {
       }
     });
   }
-  
-  // Load shortcuts and update UI
   loadCustomShortcuts();
 }
 
-// Save the default custom URL when the save button is clicked
+
 if (saveBtn) {
   saveBtn.addEventListener('click', () => {
-    // Get the URL from the input field
     const customUrl = urlInput.value.trim();
-    
-    // Validate the URL (basic check)
+
     if (!customUrl) {
       defaultStatus.textContent = "Please enter a valid URL";
       defaultStatus.style.color = "red";
       return;
     }
-    
-    // Add protocol if missing
+
     let urlToSave = customUrl;
     if (!customUrl.startsWith('http://') && !customUrl.startsWith('https://')) {
       urlToSave = 'https://' + customUrl;
       urlInput.value = urlToSave;
     }
-    
-    // Save the URL to Chrome storage
+
     chrome.storage.sync.set({ customUrl: urlToSave }, () => {
-      // Show success message
       defaultStatus.textContent = "Default URL saved successfully!";
       defaultStatus.style.color = "green";
-      
-      // Hide the message after 2 seconds
+
       setTimeout(() => {
         defaultStatus.textContent = "";
       }, 2000);
@@ -223,30 +169,24 @@ if (saveBtn) {
   });
 }
 
-// Form submission handler
 if (shortcutForm) {
   shortcutForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const title = titleInput.value.trim();
     let url = shortcutUrlInput.value.trim();
-    
-    // Get the command ID from dropdown or from the edit data attribute
+
     const commandIdSelect = document.getElementById('commandIdSelect');
     let commandId = commandIdSelect ? commandIdSelect.value : '';
-    
-    // Check if we're in edit mode and get the index
+
     const addBtn = document.getElementById('addBtn');
     const isUpdate = addBtn && addBtn.classList.contains('update-btn');
     const editIndex = isUpdate && addBtn ? parseInt(addBtn.getAttribute('data-edit-index')) : -1;
     
-    // Validate URL using the same validation function from background.js
-    // First make sure the URL has a protocol
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       url = 'https://' + url;
     }
-    
-    // Import the validation function from background.js
+
     chrome.runtime.sendMessage({
       action: "validateUrl", 
       url: url
@@ -256,40 +196,33 @@ if (shortcutForm) {
         customStatus.style.color = "red";
         return;
       }
-      
-      // Continue with the existing form processing if URL is valid
+
       processFormSubmission(title, url, commandId, isUpdate, editIndex);
     });
   });
 }
 
-// Get shortcut limit based on premium status
 function getShortcutLimit() {
   return isPremiumUser ? Infinity : FREE_USER_LIMIT;
 }
 
-// Function to handle the form processing - update the relevant parts
 function processFormSubmission(title, url, commandId, isUpdate, editIndex) {
-  // Validasi inputs
   if (!title) {
     customStatus.textContent = "Please enter a title for your shortcut";
     customStatus.style.color = "red";
     return;
   }
-  
-  // Add protocol if missing
+
   if (!url.startsWith('http://') && !url.startsWith('https://')) {
     url = 'https://' + url;
   }
-  
-  // Use the improved URL validation
+
   if (!isValidUrl(url)) {
     customStatus.textContent = "Please enter a valid URL (e.g., example.com)";
     customStatus.style.color = "red";
     return;
   }
-  
-  // Extract current domain from the URL
+
   let currentDomain;
   try {
     currentDomain = new URL(url).hostname;
@@ -298,34 +231,23 @@ function processFormSubmission(title, url, commandId, isUpdate, editIndex) {
     customStatus.style.color = "red";
     return;
   }
-  
-  // Get domain targeting with improved pattern support
+
   const domainTargeting = document.getElementById('domainTargeting');
   let domains = [];
-  
-  // Force domain targeting to be the domain from the URL
+
   if (domainTargeting) {
     domainTargeting.value = currentDomain;
     domains = [currentDomain];
   }
-  
-  // Check if we already have 3 shortcuts for this domain
+
   chrome.storage.sync.get(['customShortcuts'], (result) => {
     const shortcuts = result.customShortcuts || [];
-    
-    // Count shortcuts for current domain (excluding the one being edited if applicable)
     const domainShortcutsCount = shortcuts.filter((s, idx) => {
-      // Skip the current shortcut if we're editing it
       if (isUpdate && idx === editIndex) return false;
-      
-      // Check if shortcut is for current domain
       return s.domains && s.domains.includes(currentDomain);
     }).length;
-    
-    // Get the applicable limit based on premium status
     const shortcutLimit = getShortcutLimit();
     
-    // Check if limit reached
     if (domainShortcutsCount >= shortcutLimit) {
       customStatus.innerHTML = `
         <div>Maximum limit of ${shortcutLimit} shortcuts per domain (${currentDomain}) reached.</div>
@@ -334,8 +256,6 @@ function processFormSubmission(title, url, commandId, isUpdate, editIndex) {
         </div>` : ''}
       `;
       customStatus.style.color = "red";
-      
-      // Add event listener to upgrade link if shown
       const upgradeLink = document.getElementById('upgradeLink');
       if (upgradeLink) {
         upgradeLink.addEventListener('click', (e) => {
@@ -346,58 +266,41 @@ function processFormSubmission(title, url, commandId, isUpdate, editIndex) {
       
       return;
     }
-    
-    // Continue with shortcut creation/update
+
     if (isUpdate && editIndex >= 0 && editIndex < shortcuts.length) {
-      // Update existing shortcut
       shortcuts[editIndex].command = commandId;
       shortcuts[editIndex].title = title;
       shortcuts[editIndex].url = url;
-      shortcuts[editIndex].domains = domains; // Force domain to match URL
-
-      // Save updated shortcuts
+      shortcuts[editIndex].domains = domains; 
       chrome.storage.sync.set({ customShortcuts: shortcuts }, () => {
-        // Reset form to add mode
         resetShortcutForm();
-        
-        // Show success message with shortcut title
         customStatus.innerHTML = `
           <div>Shortcut "${title}" updated successfully!</div>
         `;
         customStatus.style.color = "green";
-        
-        // Reload the list
+
         loadCustomShortcuts();
-        
-        // Hide the message after 2 seconds
         setTimeout(() => {
           customStatus.textContent = "";
         }, 2000);
       });
     } else {
-      // Adding new shortcut
-      // Only check for duplicate command ID if one is provided
       if (commandId && commandId !== '' && shortcuts.some(s => s.command === commandId)) {
         customStatus.textContent = `Command ID "${commandId}" already exists. Please choose a different one.`; 
         customStatus.style.color = "red";
         return;
       }
-      
-      // Create a new shortcut with domain restriction
       shortcuts.push({
-        command: commandId || "", // Allow empty command ID
+        command: commandId || "", 
         title: title,
         url: url,
-        domains: domains, // Force domain to match URL
+        domains: domains,
         shortcutKey: ""
       });
-      
-      // Save updated shortcuts
+
       chrome.storage.sync.set({ customShortcuts: shortcuts }, () => {
-        // Clear the form
         resetShortcutForm();
-        
-        // Show success message with title and domain
+
         customStatus.innerHTML = `
           <div>Shortcut "${title}" added successfully</div>
           <div style="margin-top:8px;">
@@ -405,35 +308,30 @@ function processFormSubmission(title, url, commandId, isUpdate, editIndex) {
           </div>
         `;
         customStatus.style.color = "green";
-        
-        // Reload the list
+
         loadCustomShortcuts();
-        
-        // Add this line to clear the message after a delay
+
         setTimeout(() => {
           customStatus.textContent = "";
-        }, 4000); // Show for 4 seconds
+        }, 4000);
       });
     }
   });
 }
 
-// Update Chrome commands (for manifest v3, this is mostly for documentation)
 function updateChromeCommands(shortcuts) {
   // In Manifest V3, we can't add commands programmatically,
   // so this is mostly for future compatibility or extension
 }
 
-// Update the loadCustomShortcuts function to store the original index as a data attribute
 function loadCustomShortcuts(sortColumn = 'domain', sortDirection = 'asc') {
   if (!shortcutsBody) return;
   
   chrome.storage.sync.get(['customShortcuts'], (result) => {
     let shortcuts = result.customShortcuts || [];
     
-    console.log("Loaded shortcuts:", shortcuts); // Debugging
-    
-    // Group shortcuts by domain for display
+    console.log("Loaded shortcuts:", shortcuts);
+
     const domainGroups = {};
     shortcuts.forEach((shortcut, originalIndex) => {
       const domain = shortcut.domains && shortcut.domains.length > 0 ? 
@@ -442,20 +340,16 @@ function loadCustomShortcuts(sortColumn = 'domain', sortDirection = 'asc') {
       if (!domainGroups[domain]) {
         domainGroups[domain] = [];
       }
-      // Store the original index with the shortcut
+
       shortcut._originalIndex = originalIndex;
       domainGroups[domain].push(shortcut);
     });
-    
-    // Sort domain groups if requested
+
     if (sortColumn) {
-      // Sort the shortcuts within each domain
       Object.keys(domainGroups).forEach(domain => {
         domainGroups[domain].sort((a, b) => {
-          // Same sorting logic as before
           let valueA, valueB;
-          
-          // Determine values to compare based on column
+
           switch(sortColumn) {
             case 'command':
               valueA = a.command || '';
@@ -474,7 +368,6 @@ function loadCustomShortcuts(sortColumn = 'domain', sortDirection = 'asc') {
               valueB = b.title || '';
           }
           
-          // Case insensitive string comparison
           valueA = valueA.toLowerCase();
           valueB = valueB.toLowerCase();
           
@@ -482,25 +375,18 @@ function loadCustomShortcuts(sortColumn = 'domain', sortDirection = 'asc') {
           return sortDirection === 'desc' ? -result : result;
         });
       });
-      
-      // Sort domain groups by domain name
       const sortedDomains = Object.keys(domainGroups).sort();
       if (sortDirection === 'desc') {
         sortedDomains.reverse();
       }
-      
-      // Reassemble shortcuts based on sorted domains
       shortcuts = [];
       sortedDomains.forEach(domain => {
         shortcuts = shortcuts.concat(domainGroups[domain]);
       });
     }
-    
-    // Clear existing rows
     shortcutsBody.innerHTML = '';
     
     if (shortcuts.length === 0) {
-      // Show a message if no shortcuts exist
       shortcutsBody.innerHTML = `
         <tr>
           <td colspan="6" style="text-align: center;">No custom shortcuts added yet</td>
@@ -510,22 +396,15 @@ function loadCustomShortcuts(sortColumn = 'domain', sortDirection = 'asc') {
       let currentDomain = null;
       let domainCount = 0;
       
-      // Loop through shortcuts
       shortcuts.forEach((shortcut, displayIndex) => {
         const domain = shortcut.domains && shortcut.domains.length > 0 ? 
           shortcut.domains[0] : 'All websites';
         
-        // Add domain header when changing domains
         if (domain !== currentDomain) {
-          // Reset count for new domain
           domainCount = domainGroups[domain].length;
           currentDomain = domain;
-          
-          // Add domain header row
           const headerRow = document.createElement('tr');
           headerRow.className = 'domain-header';
-
-          // Get the applicable limit based on premium status
           const shortcutLimit = getShortcutLimit();
           const limitText = isPremiumUser ? 'unlimited' : `${domainCount}/${shortcutLimit}`;
           const limitReached = !isPremiumUser && domainCount >= shortcutLimit;
@@ -540,11 +419,8 @@ function loadCustomShortcuts(sortColumn = 'domain', sortDirection = 'asc') {
           `;
           shortcutsBody.appendChild(headerRow);
         }
-        
-        // Add the shortcut row
+
         const row = document.createElement('tr');
-        
-        // Use the ORIGINAL index, not the display index
         const originalIndex = shortcut._originalIndex;
         
         row.innerHTML = `
@@ -565,8 +441,7 @@ function loadCustomShortcuts(sortColumn = 'domain', sortDirection = 'asc') {
         
         shortcutsBody.appendChild(row);
       });
-      
-      // Add event handlers for Edit and Delete buttons
+
       document.querySelectorAll('.edit-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
           const index = parseInt(e.target.getAttribute('data-index'));
@@ -584,17 +459,13 @@ function loadCustomShortcuts(sortColumn = 'domain', sortDirection = 'asc') {
       });
     }
   });
-  
-  // Add this at the end of the function:
+
   updateShortcutDisplayTable();
 }
 
-// Update the deleteShortcut function
 function deleteShortcut(index) {
   chrome.storage.sync.get(['customShortcuts'], (result) => {
     const shortcuts = result.customShortcuts || [];
-    
-    // Store shortcut information before deletion for the success message
     const deletedShortcut = shortcuts[index];
     
     if (!deletedShortcut) {
@@ -602,30 +473,20 @@ function deleteShortcut(index) {
       customStatus.style.color = "red";
       return;
     }
-    
-    // Remove the shortcut at the specified index
     shortcuts.splice(index, 1);
-    
-    // Save updated shortcuts
+
     chrome.storage.sync.set({ customShortcuts: shortcuts }, () => {
-      // Show success message with shortcut title
       customStatus.innerHTML = `
         <div>Shortcut "${deletedShortcut.title}" deleted successfully!</div>
       `;
       customStatus.style.color = "green";
-      
-      // Reload the list
       loadCustomShortcuts();
-      
-      // Hide the message after 2 seconds
       setTimeout(() => {
         customStatus.textContent = "";
       }, 2000);
     });
   });
 }
-
-// Add a function to periodically check and display current shortcut settings
 
 function updateShortcutDisplayTable() {
   // Only Chrome 93+ includes the commands.getAll API
@@ -637,13 +498,9 @@ function updateShortcutDisplayTable() {
     chrome.storage.sync.get(['customShortcuts'], (result) => {
       const shortcuts = result.customShortcuts || [];
       const shortcutMap = {};
-      
-      // Create mapping of command ID -> shortcut data
       shortcuts.forEach(shortcut => {
         shortcutMap[shortcut.command] = shortcut;
       });
-      
-      // Update UI with actual Chrome shortcut bindings
       commands.forEach(command => {
         if (shortcutMap[command.name]) {
           const shortcutElem = document.querySelector(`[data-command-id="${command.name}"] .shortcut-binding`);
@@ -652,12 +509,8 @@ function updateShortcutDisplayTable() {
             shortcutElem.style.color = command.shortcut ? 'green' : 'blue';
             shortcutElem.style.cursor = 'pointer';
             shortcutElem.style.textDecoration = 'underline';
-            
-            // Remove any existing event listeners
             const newElem = shortcutElem.cloneNode(true);
             shortcutElem.parentNode.replaceChild(newElem, shortcutElem);
-            
-            // Add click event listener to open Chrome shortcuts page
             newElem.addEventListener('click', function() {
               chrome.tabs.create({url: 'chrome://extensions/shortcuts'});
             });
@@ -668,13 +521,10 @@ function updateShortcutDisplayTable() {
   });
 }
 
-// Call this periodically to keep the UI in sync
 setInterval(updateShortcutDisplayTable, 5000);
 
-// Add a special guide function that explains the process with screenshots
 
 function showShortcutConfigGuide() {
-  // Create modal overlay
   const modal = document.createElement('div');
   modal.className = 'shortcut-guide-modal';
   modal.innerHTML = `
@@ -699,12 +549,8 @@ function showShortcutConfigGuide() {
 
 }
 
-
-// Check if Chrome has the newer commands API
-
 let hasCommandsAPI = false;
 
-// Check for Chrome API support
 function checkChromeAPIs() {
   if (chrome.commands && chrome.commands.getAll) {
     try {
@@ -719,49 +565,38 @@ function checkChromeAPIs() {
   }
 }
 
-// Check API support on page load
 document.addEventListener('DOMContentLoaded', checkChromeAPIs);
 
-// Function to initialize and populate the command dropdown
 function initCommandDropdown() {
   const commandDropdown = document.getElementById('commandIdSelect');
   if (!commandDropdown) {
-    // If dropdown not found, create it
     createCommandDropdown();
     return;
   }
   
-  // Clear current options to prevent duplicates
   commandDropdown.innerHTML = '';
-  
-  // Add a default "None" option to make it clear this is optional
+
   commandDropdown.appendChild(new Option('None (Optional)', ''));
-  
-  // Get existing shortcuts to check which commands are already used
+
   chrome.storage.sync.get(['customShortcuts'], (result) => {
     const shortcuts = result.customShortcuts || [];
-    const usedCommandIds = shortcuts.map(s => s.command).filter(id => id); // Filter out empty command IDs
-    
-    // Make sure AVAILABLE_COMMANDS is defined
+    const usedCommandIds = shortcuts.map(s => s.command).filter(id => id); 
+
     if (AVAILABLE_COMMANDS && AVAILABLE_COMMANDS.length) {
-      // Add available commands to dropdown
       AVAILABLE_COMMANDS.forEach(cmd => {
         if (!usedCommandIds.includes(cmd)) {
           commandDropdown.appendChild(new Option(cmd, cmd));
         }
       });
     }
-    
-    // No need to disable the dropdown if all commands are used - users can still select "None"
+
     if (commandDropdown.options.length <= 1) {
       commandDropdown.appendChild(new Option('All command IDs in use', ''));
     }
   });
 }
 
-// Create command dropdown if it doesn't exist
 function createCommandDropdown() {
-  // Find the form group that should contain the dropdown
   const formGroups = document.querySelectorAll('.form-group');
   let commandFormGroup;
   
@@ -773,7 +608,6 @@ function createCommandDropdown() {
   }
   
   if (commandFormGroup) {
-    // Create the dropdown element
     const dropdownHtml = `
       <div class="command-id-group">
         <select id="commandIdSelect" class="command-id-input">
@@ -785,19 +619,16 @@ function createCommandDropdown() {
         Command IDs are only needed if you want to assign keyboard shortcuts. You can add shortcuts without selecting a Command ID.
       </div>
     `;
-    
-    // Replace the content of the form group
+
     commandFormGroup.innerHTML = `
       <label for="commandIdSelect">Command ID (Optional):</label>
       ${dropdownHtml}
     `;
-    
-    // Initialize the dropdown with options
+
     initCommandDropdown();
   }
 }
 
-// Update the createCommandDropdown function to also ensure domain field has proper appearance
 function createDomainField() {
   const formGroups = document.querySelectorAll('.form-group');
   let domainFormGroup;
@@ -810,7 +641,6 @@ function createDomainField() {
   }
   
   if (domainFormGroup) {
-    // Create the domain input field with readonly attribute
     domainFormGroup.innerHTML = `
       <label for="domainTargeting">Target Domain:</label>
       <input type="text" id="domainTargeting" readonly placeholder="Automatically set from URL">
@@ -832,27 +662,22 @@ function createDomainField() {
   }
 }
 
-// Prepare command dropdown structure
 function prepareCommandDropdown() {
   const commandDropdown = document.getElementById('commandIdSelect');
   if (!commandDropdown) {
     createCommandDropdown();
   } else {
-    // If dropdown exists, fill it with options
     initCommandDropdown();
   }
 }
 
-// Fill command dropdown with options
 function fillCommandDropdown() {
   const commandDropdown = document.getElementById('commandIdSelect');
   if (!commandDropdown) return;
   
-  // Clear existing options
   commandDropdown.innerHTML = '';
   commandDropdown.appendChild(new Option('Select a command ID', ''));
   
-  // Fill with available options
   chrome.storage.sync.get(['customShortcuts'], (result) => {
     const shortcuts = result.customShortcuts || [];
     const usedCommandIds = shortcuts.map(s => s.command);
@@ -872,154 +697,123 @@ function fillCommandDropdown() {
   });
 }
 
-// Update the updateCommandIdDropdown function
 function updateCommandIdDropdown() {
-  // Call fillCommandDropdown which will properly clear and repopulate the dropdown
   fillCommandDropdown();
 }
 
-// Tambahkan fungsi editShortcut
 function editShortcut(index) {
   chrome.storage.sync.get(['customShortcuts'], (result) => {
     const shortcuts = result.customShortcuts || [];
     const shortcut = shortcuts[index];
     
     if (!shortcut) return;
-    
-    // Populate form fields with shortcut data
+
     if (titleInput) titleInput.value = shortcut.title;
     if (shortcutUrlInput) shortcutUrlInput.value = shortcut.url;
     
-    // Extract domain from URL
     let domain = '';
     try {
       domain = new URL(shortcut.url).hostname;
     } catch (e) {
       console.error('Invalid URL', e);
     }
-    
-    // Populate domain targeting (now read-only)
+
     const domainTargetingInput = document.getElementById('domainTargeting');
     if (domainTargetingInput) {
       domainTargetingInput.value = domain;
       domainTargetingInput.setAttribute('readonly', 'readonly');
     }
-    
-    // Handle command ID dropdown while user edit the shortcut
+
     const commandIdSelect = document.getElementById('commandIdSelect');
     if (commandIdSelect) {
-      // Re-initialize the dropdown to show all available options plus the current one
       commandIdSelect.innerHTML = '';
       commandIdSelect.appendChild(new Option('None (Optional)', ''));
-      
-      // Get list of used command IDs excluding the current one
+
       const usedCommandIds = shortcuts
-        .filter((s, i) => i !== index && s.command) // Exclude this shortcut
+        .filter((s, i) => i !== index && s.command)
         .map(s => s.command);
-      
-      // Add available commands to dropdown
+
       AVAILABLE_COMMANDS.forEach(cmd => {
-        // Include this command if it's not used by any other shortcut
-        // or if it's the current shortcut's command
         if (!usedCommandIds.includes(cmd) || shortcut.command === cmd) {
           const option = new Option(cmd, cmd);
           commandIdSelect.appendChild(option);
-          
-          // Select the current command if it exists
+
           if (shortcut.command === cmd) {
             option.selected = true;
           }
         }
       });
-      
-      // Keep dropdown enabled
+
       commandIdSelect.disabled = false;
     }
-    
-    // Change the Add button to an Update button
+
     const addBtn = document.getElementById('addBtn');
     if (addBtn) {
       addBtn.textContent = 'Update Shortcut';
       addBtn.classList.add('update-btn');
-      // Store the index to know which shortcut to update
       addBtn.setAttribute('data-edit-index', index);
     }
-    
-    // Add cancel button
+
     if (!document.getElementById('cancelEditBtn')) {
       const cancelBtn = document.createElement('button');
       cancelBtn.id = 'cancelEditBtn';
       cancelBtn.className = 'cancel-btn';
       cancelBtn.textContent = 'Cancel';
-      cancelBtn.type = 'button';  // Important - don't submit the form
+      cancelBtn.type = 'button';
       
       cancelBtn.addEventListener('click', () => {
         resetShortcutForm();
       });
       
-      // Add the cancel button after the add/update button
       if (addBtn && addBtn.parentNode) {
         addBtn.parentNode.insertBefore(cancelBtn, addBtn.nextSibling);
       }
     }
     
-    // Scroll to the form
     if (shortcutForm) {
       shortcutForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   });
 }
 
-// Reset form status to "Add"
 function resetShortcutForm() {
-  // Clear form fields
   if (titleInput) titleInput.value = '';
   if (shortcutUrlInput) shortcutUrlInput.value = '';
-  
-  // Clear domain targeting but keep it readonly
   const domainTargetingInput = document.getElementById('domainTargeting');
   if (domainTargetingInput) {
     domainTargetingInput.value = '';
-    domainTargetingInput.setAttribute('readonly', 'readonly'); // Always keep readonly
+    domainTargetingInput.setAttribute('readonly', 'readonly');
   }
-  
-  // Reset command ID dropdown
+
   updateCommandIdDropdown();
   const commandIdSelect = document.getElementById('commandIdSelect');
   if (commandIdSelect) {
     commandIdSelect.disabled = false;
   }
   
-  // Reset Add button
   const addBtn = document.getElementById('addBtn');
   if (addBtn) {
     addBtn.textContent = 'Add Custom Shortcut';
     addBtn.classList.remove('update-btn');
     addBtn.removeAttribute('data-edit-index');
   }
-  
-  // Remove cancel button
+
   const cancelBtn = document.getElementById('cancelEditBtn');
   if (cancelBtn) {
     cancelBtn.parentNode.removeChild(cancelBtn);
   }
 }
 
-
-// Add table sorting functionality
 function initTableSorting() {
   const table = document.getElementById('shortcutsTable');
   if (!table) return;
-  
-  // Current sort state - Initialize with domain sorting by default
+
   let sortConfig = {
-    column: 'domain', // Start with domain sorting by default
+    column: 'domain', 
     direction: 'asc'
   };
-  
-  // Add click event listeners to sortable headers
+
   document.querySelectorAll('th.sortable').forEach(header => {
-    // Set initial visual indicator for domain column
     if (header.getAttribute('data-sort') === 'domain') {
       header.classList.add('sort-asc');
     }
@@ -1027,40 +821,32 @@ function initTableSorting() {
     header.addEventListener('click', () => {
       const column = header.getAttribute('data-sort');
       const direction = sortConfig.column === column && sortConfig.direction === 'asc' ? 'desc' : 'asc';
-      
-      // Update sort visual indicators
+
       document.querySelectorAll('th.sortable').forEach(h => {
         h.classList.remove('sort-asc', 'sort-desc');
       });
       header.classList.add(direction === 'asc' ? 'sort-asc' : 'sort-desc');
-      
-      // Save the new sort state
+
       sortConfig = { column, direction };
-      
-      // Reload shortcuts with new sorting
+
       loadCustomShortcuts(column, direction);
     });
   });
   
-  // Apply the initial default sorting
   loadCustomShortcuts(sortConfig.column, sortConfig.direction);
 }
 
-// Add this function after resetting the form
 function initDomainAutoUpdate() {
   const urlInput = document.getElementById('shortcutUrl');
   const domainInput = document.getElementById('domainTargeting');
   
   if (!urlInput || !domainInput) return;
-  
-  // Make domain input always readonly
+
   domainInput.setAttribute('readonly', 'readonly');
-  
-  // Helper function to extract domain from URL
+
   const extractDomain = (url) => {
     if (!url || url.trim() === '') return '';
-    
-    // Add protocol if missing
+
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       url = 'https://' + url;
     }
@@ -1068,24 +854,17 @@ function initDomainAutoUpdate() {
     try {
       return new URL(url).hostname;
     } catch (e) {
-      // For partial URLs that might be invalid while typing,
-      // try a simple domain extraction as fallback
       const domainMatch = url.match(/[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}/);
       return domainMatch ? domainMatch[0] : '';
     }
   };
   
-  // Function to update domain input with animation effect
   const updateDomain = (domain) => {
-    // Update value and placeholder
     domainInput.value = domain;
     domainInput.placeholder = domain ? domain : "Automatically set from URL";
-    
-    // Add visual feedback
+
     if (domain) {
-      // Use CSS transitions rather than setTimeout for better performance
       domainInput.classList.remove('domain-updated');
-      // Using requestAnimationFrame for better performance and synchronization with browser rendering
       requestAnimationFrame(() => {
         domainInput.classList.add('valid-domain');
         domainInput.classList.add('domain-updated');
@@ -1095,54 +874,43 @@ function initDomainAutoUpdate() {
       domainInput.classList.remove('domain-updated');
     }
   };
-  
-  // Add input event listener to update domain in real-time as user types
+
   urlInput.addEventListener('input', () => {
     const url = urlInput.value.trim();
     const domain = extractDomain(url);
-    
-    // Update domain with animation
+
     updateDomain(domain);
-    
-    // Remove console logging for production code
+ 
   });
-  
-  // Also handle blur event for final validation and URL correction
+
   urlInput.addEventListener('blur', () => {
     let url = urlInput.value.trim();
     
     if (url) {
-      // Add protocol if missing for the actual input value
       if (!url.startsWith('http://') && !url.startsWith('https://')) {
         url = 'https://' + url;
         urlInput.value = url;
       }
-      
-      // Final domain extraction with complete URL
+
       try {
         const domain = new URL(url).hostname;
         updateDomain(domain);
       } catch (e) {
-        // Silent error handling to avoid console errors
-        // Use a more user-friendly approach by clearing the domain
         updateDomain('');
       }
     }
   });
-  
-  // Initialize on page load if URL already has a value
+
   if (urlInput.value.trim()) {
     const domain = extractDomain(urlInput.value.trim());
     updateDomain(domain);
   }
 }
 
-// Add this function to create an information banner
 function createDomainRestrictionInfo() {
   const formContainer = document.querySelector('.custom-shortcut-form');
   if (!formContainer) return;
-  
-  // Create info element if it doesn't exist
+
   if (!document.querySelector('.domain-restricted')) {
     const infoElement = document.createElement('div');
     infoElement.className = 'domain-restricted';
@@ -1154,13 +922,11 @@ function createDomainRestrictionInfo() {
         <li>The domain is automatically set based on the URL you enter</li>
       </ul>
     `;
-    
-    // Insert at the beginning of the form
+
     formContainer.insertBefore(infoElement, formContainer.firstChild);
   }
 }
 
-// Add debug function to check the state
 function debugCommands() {
   console.log("AVAILABLE_COMMANDS:", AVAILABLE_COMMANDS);
   
@@ -1179,7 +945,6 @@ function debugCommands() {
   }
 }
 
-// Initialize guide button functionality
 function initGuideButton() {
   const guideBtn = document.getElementById('shortcutGuideBtn');
   if (guideBtn) {
@@ -1189,12 +954,10 @@ function initGuideButton() {
   }
 }
 
-// Update the domain field to show an icon indicating auto-update
 function enhanceDomainField() {
   const domainContainer = document.getElementById('domainTargeting')?.parentElement;
   if (!domainContainer) return;
-  
-  // Add an auto-update icon
+
   const autoIcon = document.createElement('div');
   autoIcon.className = 'domain-auto-icon';
   autoIcon.innerHTML = `
@@ -1206,13 +969,11 @@ function enhanceDomainField() {
       <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
     </svg>
   `;
-  
-  // Add label to make it clear
+
   const autoLabel = document.createElement('span');
   autoLabel.className = 'domain-auto-label';
   autoLabel.textContent = 'Auto-filled from URL';
-  
-  // Update the hint text
+
   const hintDiv = domainContainer.querySelector('.shortcut-hint') || document.createElement('div');
   hintDiv.className = 'shortcut-hint';
   hintDiv.innerHTML = `
@@ -1221,20 +982,17 @@ function enhanceDomainField() {
       <span>Auto-filled from URL</span>
     </div>
   `;
-  
-  // Ensure the hint is in the container
+
   if (!domainContainer.querySelector('.shortcut-hint')) {
     domainContainer.appendChild(hintDiv);
   }
   
 }
 
-// Function to check premium status - add this after existing functions
 function checkPremiumStatus() {
   return new Promise((resolve) => {
     chrome.storage.sync.get(['premiumStatus'], (result) => {
       if (result.premiumStatus && result.premiumStatus.active === true) {
-        // If there's an expiration date, check if the license is still valid
         if (result.premiumStatus.expiresOn) {
           const now = new Date();
           const expiryDate = new Date(result.premiumStatus.expiresOn);
@@ -1250,17 +1008,13 @@ function checkPremiumStatus() {
   });
 }
 
-// Add this function to display premium status
 function displayPremiumStatus() {
-  // Create or update premium status indicator
   let statusContainer = document.querySelector('.premium-status-container');
   
   if (!statusContainer) {
-    // Create the container if it doesn't exist
     statusContainer = document.createElement('div');
     statusContainer.className = 'premium-status-container';
-    
-    // Insert after h1
+
     const h1 = document.querySelector('h1');
     if (h1 && h1.parentNode) {
       h1.parentNode.insertBefore(statusContainer, h1.nextSibling);
@@ -1271,22 +1025,19 @@ function displayPremiumStatus() {
   
   chrome.storage.sync.get(['premiumStatus'], (result) => {
     const premiumData = result.premiumStatus || {};
-    
-    // Format the activation date if available
+
     let activatedText = '';
     if (premiumData.activatedOn) {
       const activationDate = new Date(premiumData.activatedOn);
       activatedText = `Activated on: ${activationDate.toLocaleDateString()}`;
     }
-    
-    // Format the expiration date if available
+
     let expiresText = '';
     if (premiumData.expiresOn) {
       const expiryDate = new Date(premiumData.expiresOn);
       expiresText = `Expires: ${expiryDate.toLocaleDateString()}`;
     }
-    
-    // Update status container content
+
     statusContainer.innerHTML = isPremiumUser ? 
       `<div class="premium-badge">
          <span class="premium-icon">✓</span>
@@ -1301,8 +1052,7 @@ function displayPremiumStatus() {
          <span class="free-feature">Limited to ${FREE_USER_LIMIT} shortcuts per domain</span>
          <button id="upgradeToPremium" class="upgrade-btn">Upgrade to Premium</button>
        </div>`;
-       
-    // Add event listener to upgrade button
+
     const upgradeBtn = document.getElementById('upgradeToPremium');
     if (upgradeBtn) {
       upgradeBtn.addEventListener('click', showPremiumUpgradeModal);
@@ -1310,9 +1060,7 @@ function displayPremiumStatus() {
   });
 }
 
-// Add this function to show premium upgrade modal
 function showPremiumUpgradeModal() {
-  // Create modal overlay
   const modal = document.createElement('div');
   modal.className = 'premium-upgrade-modal';
   modal.innerHTML = `
@@ -1352,11 +1100,9 @@ function showPremiumUpgradeModal() {
       </div>
     </div>
   `;
-  
-  // Add modal to body
+
   document.body.appendChild(modal);
-  
-  // Add event listeners
+
   document.getElementById('activateLicense').addEventListener('click', () => {
     document.getElementById('licenseActivationForm').style.display = 'block';
     document.getElementById('activateLicense').style.display = 'none';
@@ -1380,7 +1126,6 @@ function showPremiumUpgradeModal() {
   }
 }
 
-// License API Configuration - Keep this section as the single source of truth
 const LICENSE_API_CONFIG = {
   baseUrl: 'https://ridwancard.my.id',
   endpoints: {
@@ -1390,9 +1135,7 @@ const LICENSE_API_CONFIG = {
   }
 };
 
-// Helper function to make license API requests - Modified to use background script for security
 function makeLicenseApiRequest(endpoint, licenseKey) {
-  // Use message passing to delegate API calls to background service worker
   return new Promise((resolve, reject) => {
     chrome.runtime.sendMessage({
       action: "licenseApiRequest",
@@ -1413,7 +1156,6 @@ function makeLicenseApiRequest(endpoint, licenseKey) {
   });
 }
 
-// Function to verify license key - Updated to use more secure approach
 function verifyLicenseKey(licenseKey) {
   const licenseMessage = document.getElementById('licenseMessage');
   licenseMessage.innerHTML = '<p style="color: blue;">Verifying license...</p>';
@@ -1421,10 +1163,8 @@ function verifyLicenseKey(licenseKey) {
   makeLicenseApiRequest(LICENSE_API_CONFIG.endpoints.activate, licenseKey)
     .then(data => {
       if (data.success === true) {
-        // License is valid and activated
         licenseMessage.innerHTML = '<p style="color: green;">License verified and activated successfully! Refreshing page...</p>';
         
-        // Store the license information from the response
         chrome.storage.sync.set({
           'premiumStatus': {
             active: true,
@@ -1436,13 +1176,11 @@ function verifyLicenseKey(licenseKey) {
             remainingActivations: data.data?.remainingActivations || 1
           }
         }, () => {
-          // Refresh the page immediately after setting the storage
           setTimeout(() => {
             window.location.reload();
           }, 1000);
         });
       } else {
-        // License is invalid
         licenseMessage.innerHTML = 
           `<p style="color: red;">Invalid license key: ${data.message || 'Please check and try again'}</p>`;
       }
@@ -1454,7 +1192,6 @@ function verifyLicenseKey(licenseKey) {
     });
 }
 
-// Function to refresh the license status - Updated to use more secure approach
 function refreshLicense() {
   chrome.storage.sync.get(['premiumStatus'], (result) => {
     const premiumData = result.premiumStatus || {};
@@ -1465,14 +1202,11 @@ function refreshLicense() {
       return;
     }
     
-    // Show loading message
     customStatus.innerHTML = `<div style="color: blue;">Refreshing license status...</div>`;
     
-    // Use the updated API request function
     makeLicenseApiRequest(LICENSE_API_CONFIG.endpoints.validate, licenseKey)
       .then(data => {
         if (data.success === true) {
-          // Update stored license information with latest data
           chrome.storage.sync.set({
             'premiumStatus': {
               active: true,
@@ -1484,18 +1218,15 @@ function refreshLicense() {
               timesActivatedMax: data.data?.timesActivatedMax || null
             }
           }, () => {
-            // Update UI
             updateLicenseDetails();
             displayPremiumStatus();
             
-            // Show success message
             customStatus.innerHTML = `<div style="color: green;">License refreshed successfully!</div>`;
             setTimeout(() => {
               customStatus.textContent = "";
             }, 4000);
           });
         } else {
-          // License is no longer valid
           chrome.storage.sync.set({
             'premiumStatus': {
               active: false,
@@ -1526,33 +1257,28 @@ function refreshLicense() {
   });
 }
 
-// Function to mask license key for display (show only last 4 characters)
 function maskLicenseKey(key) {
   if (!key || key === 'Unknown') return 'Unknown';
   if (key.length <= 4) return key;
   return '••••••••' + key.slice(-4);
 }
 
-// Function to deactivate the license using official API
 function deactivateLicense() {
   if (!confirm('Are you sure you want to deactivate your premium license? This will revert you to the free version with limited features.')) {
-    return; // User cancelled the operation
+    return;
   }
   
   chrome.storage.sync.get(['premiumStatus'], (result) => {
     const premiumData = result.premiumStatus || {};
     const licenseKey = premiumData.licenseKey;
     
-    // Show processing message
     showStatusMessage('Deactivating license...', 'blue');
     
-    // If no license key exists, just remove local data
     if (!licenseKey) {
       removeLicenseLocally('License deactivated. You\'re now using the free version.', 'orange');
       return;
     }
     
-    // Attempt to deactivate with server
     makeLicenseApiRequest(LICENSE_API_CONFIG.endpoints.deactivate, licenseKey)
       .then(data => {
         const message = data.success === true 
@@ -1571,22 +1297,18 @@ function deactivateLicense() {
       });
   });
   
-  // Helper function to show status messages
   function showStatusMessage(message, color) {
     customStatus.innerHTML = `<div style="color: ${color};">${message}</div>`;
   }
   
-  // Helper function to remove license data and refresh the page
   function removeLicenseLocally(message, color) {
     chrome.storage.sync.remove(['premiumStatus'], () => {
       showStatusMessage(message, color);
-      // Refresh page immediately to prevent "deleted shortcut" notifications
       window.location.reload();
     });
   }
 }
 
-//open shortcut setting page in Chrome
 document.getElementById('openShortcutsPage').addEventListener('click', () => {
   chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
 });
@@ -1596,18 +1318,15 @@ function initCollapsibleSections() {
   
   collapsibles.forEach(collapsible => {
     collapsible.addEventListener('click', function() {
-      // Toggle active class on parent container
       this.parentElement.classList.toggle('active');
     });
   });
   
-  // Open the first section by default
   if (collapsibles.length > 0) {
     collapsibles[0].parentElement.classList.add('active');
   }
 }
 
-// Update the showShortcutConfigGuide function in options.js
 
 function showShortcutConfigGuide() {
   const guideContent = `
@@ -1675,26 +1394,21 @@ function showShortcutConfigGuide() {
     </div>
   `;
   
-  // Show the guide in a modal dialog
   showModal('Shortcut Configuration Guide', guideContent);
 }
 
-// Add this function to show modals - the missing piece!
 function showModal(title, content) {
-  // Remove any existing modals first
   const existingModal = document.querySelector('.guide-modal');
   if (existingModal) {
     existingModal.parentNode.removeChild(existingModal);
   }
   
-  // Create modal overlay
   const modal = document.createElement('div');
   modal.className = 'guide-modal';
   modal.setAttribute('role', 'dialog');
   modal.setAttribute('aria-labelledby', 'modalTitle');
   modal.setAttribute('aria-describedby', 'modalContent');
   
-  // Create modal content
   modal.innerHTML = `
     <div class="guide-modal-content">
       <div class="guide-modal-header">
@@ -1712,18 +1426,14 @@ function showModal(title, content) {
     </div>
   `;
   
-  // Add to document
   document.body.appendChild(modal);
   
-  // Focus trap for accessibility
   const focusableElements = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
   const firstElement = focusableElements[0];
   const lastElement = focusableElements[focusableElements.length - 1];
   
-  // Focus the first element
   firstElement.focus();
   
-  // Close button functionality
   const closeBtn = modal.querySelector('.guide-close-btn');
   const okBtn = modal.querySelector('.guide-ok-btn');
   
@@ -1734,14 +1444,12 @@ function showModal(title, content) {
   closeBtn.addEventListener('click', closeModal);
   okBtn.addEventListener('click', closeModal);
   
-  // Close when clicking outside
   modal.addEventListener('click', (e) => {
     if (e.target === modal) {
       closeModal();
     }
   });
   
-  // Close on escape key
   document.addEventListener('keydown', function handleEscapeKey(e) {
     if (e.key === 'Escape') {
       closeModal();
@@ -1749,7 +1457,6 @@ function showModal(title, content) {
     }
   });
   
-  // Handle tab key for focus trap
   modal.addEventListener('keydown', (e) => {
     if (e.key === 'Tab') {
       if (e.shiftKey) {
@@ -1767,11 +1474,9 @@ function showModal(title, content) {
   });
 }
 
-// Add this function to your options.js
 function addLicenseManagementSection() {
   const settingsContainer = document.querySelector('.shortcut-note.highlight') || document.body;
   
-  // Create the license management section if it doesn't exist
   if (!document.getElementById('licenseManagementSection')) {
     const licenseSection = document.createElement('div');
     licenseSection.id = 'licenseManagementSection';
@@ -1792,7 +1497,6 @@ function addLicenseManagementSection() {
       </div>
     `;
     
-    // Insert before the form
     const form = document.getElementById('shortcutForm');
     if (form && form.parentNode) {
       form.parentNode.insertBefore(licenseSection, form);
@@ -1800,33 +1504,28 @@ function addLicenseManagementSection() {
       settingsContainer.appendChild(licenseSection);
     }
     
-    // Initialize collapsible behavior 
     const header = licenseSection.querySelector('.collapsible-header');
     const content = licenseSection.querySelector('.collapsible-content');
     const icon = licenseSection.querySelector('.collapsible-icon');
     
     header.addEventListener('click', function() {
-      // Toggle content visibility
       if (content.style.display === "none" || !content.style.display) {
         content.style.display = "block";
-        icon.textContent = "▼"; // Change arrow to pointing down
-        updateLicenseDetails(); // Load license details when expanded
+        icon.textContent = "▼"; 
+        updateLicenseDetails();
       } else {
         content.style.display = "none";
-        icon.textContent = "▶"; // Change arrow to pointing right
+        icon.textContent = "▶"; 
       }
     });
     
-    // Add event listeners for license management buttons
     document.getElementById('refreshLicenseBtn').addEventListener('click', refreshLicense);
     document.getElementById('deactivateLicenseBtn').addEventListener('click', deactivateLicense);
     
-    // Initialize license details
     updateLicenseDetails();
   }
 }
 
-// Make sure to define updateLicenseDetails function if it's not already defined
 function updateLicenseDetails() {
   const licenseDetails = document.getElementById('licenseDetails');
   const licenseActionButtons = document.getElementById('licenseActionButtons');
@@ -1837,10 +1536,8 @@ function updateLicenseDetails() {
     const premiumData = result.premiumStatus || {};
     
     if (premiumData.active) {
-      // Show action buttons when license is active
       licenseActionButtons.style.display = 'block';
       
-      // Format dates
       const activatedDate = premiumData.activatedOn ? 
         new Date(premiumData.activatedOn).toLocaleDateString() : 'Unknown';
       
@@ -1851,7 +1548,6 @@ function updateLicenseDetails() {
         `<p><strong>Expires On:</strong> ${new Date(premiumData.expiresOn).toLocaleDateString()}</p>` : 
         '<p><strong>License Type:</strong> Lifetime (no expiration)</p>';
       
-      // Add activation count information if available
       const activationInfo = premiumData.timesActivatedMax ? 
         `<p><strong>Activations:</strong> ${premiumData.timesActivated || 1} / ${premiumData.timesActivatedMax}</p>` : '';
       
@@ -1866,16 +1562,13 @@ function updateLicenseDetails() {
         </div>
       `;
       
-      // Show license management section when license exists
       const licenseSection = document.getElementById('licenseManagementSection');
       if (licenseSection) {
         licenseSection.style.display = 'block';
       }
     } else {
-      // Hide action buttons when no license is active
       licenseActionButtons.style.display = 'none';
       
-      // Hide the entire license management section when no license exists
       const licenseSection = document.getElementById('licenseManagementSection');
       if (licenseSection) {
         licenseSection.style.display = 'none';
@@ -1888,7 +1581,6 @@ function updateLicenseDetails() {
         </div>
       `;
       
-      // Add event listener to the Add License button
       const addLicenseBtn = document.getElementById('addLicenseBtn');
       if (addLicenseBtn) {
         addLicenseBtn.addEventListener('click', showPremiumUpgradeModal);
@@ -1897,7 +1589,6 @@ function updateLicenseDetails() {
   });
 }
 
-// Add event listener for the shortcuts page links
 document.addEventListener('DOMContentLoaded', function() {
   const shortcutLinks = document.querySelectorAll('#openShortcutsPage');
   shortcutLinks.forEach(link => {

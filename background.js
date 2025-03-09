@@ -1,36 +1,26 @@
 /**
- * Background service worker for the Custom Shortcut Extension
+ * Background service worker for Smart Shortcut Panel
  * Listens for shortcut commands and opens the saved URLs
  */
 
-// Default URL to open if none is saved
 const DEFAULT_URL = "chrome://newtab";
 
-// URL validation function
 function isValidUrl(urlString) {
   try {
     const url = new URL(urlString);
     
-    // Only allow http and https protocols (block javascript:, data:, file:, etc)
     if (url.protocol !== "http:" && url.protocol !== "https:") {
       console.warn("Blocked non-http(s) protocol:", url.protocol);
       return false;
     }
     
-    // Higher-risk patterns that warrant blocking
     const highRiskPatterns = [
-      // Common malicious domains
       'evil.com', 'malware.com', 'phishing.', 'virus.', 'trojan.',
-      
-      // Authentication/financial scam patterns
       'account-verify.', 'secure-login.', 'verification-required.',
       'wallet-validate.', 'crypto-verify.',
-      
-      // Document/attachment scams
       'invoice-attached.', 'secure-file.',
     ];
     
-    // Check hostname against high-risk patterns
     for (const pattern of highRiskPatterns) {
       if (url.hostname.includes(pattern) || url.pathname.includes(pattern)) {
         console.warn("Blocked high-risk domain/path:", pattern, "in", url.toString());
@@ -38,21 +28,18 @@ function isValidUrl(urlString) {
       }
     }
     
-    // Check for IP addresses in hostname (often suspicious)
     const ipAddressPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
     if (ipAddressPattern.test(url.hostname)) {
       console.warn("Blocked IP address as hostname:", url.hostname);
       return false;
     }
     
-    // Check for excessive subdomains (potential DNS tunneling or evasion)
     const subdomainCount = (url.hostname.match(/\./g) || []).length;
     if (subdomainCount > 5) {
       console.warn("Blocked URL with excessive subdomains:", url.hostname);
       return false;
     }
     
-    // Check for excessively long hostnames (potential obfuscation)
     if (url.hostname.length > 100) {
       console.warn("Blocked excessively long hostname:", url.hostname);
       return false;
@@ -65,14 +52,11 @@ function isValidUrl(urlString) {
   }
 }
 
-// Rate limiting mechanism
 let lastCommandTime = 0;
-const COMMAND_COOLDOWN_MS = 1000; // 1 second cooldown between commands
+const COMMAND_COOLDOWN_MS = 1000; 
 
-// Check the url safety before opening
 function checkUrlSafety(url) {
   return new Promise((resolve) => {
-    // Basic safety check
     if (!isValidUrl(url)) {
       resolve({isSafe: false, message: "URL failed safety check"});
       return;
@@ -82,29 +66,23 @@ function checkUrlSafety(url) {
   });
 }
 
-// Sanitize URLs before opening them
 function sanitizeUrl(url) {
   try {
-    // Parse the URL to ensure it's valid
     const parsedUrl = new URL(url);
     
-    // Remove any fragments that could contain JavaScript
     parsedUrl.hash = '';
     
-    // Ensure protocol is http or https
     if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
-      return DEFAULT_URL; // Return a safe default if protocol is suspicious
+      return DEFAULT_URL; 
     }
     
-    // Return the sanitized URL
     return parsedUrl.toString();
   } catch (error) {
     console.warn("URL sanitization failed:", error);
-    return DEFAULT_URL; // Return a safe default on error
+    return DEFAULT_URL;
   }
 }
 
-// Get shortcuts from storage
 function getShortcuts() {
   return new Promise((resolve) => {
     chrome.storage.sync.get(["customShortcuts"], (result) => {
@@ -113,7 +91,6 @@ function getShortcuts() {
   });
 }
 
-// Open URL in current tab or new tab if none active
 function openUrl(url) {
   const sanitizedUrl = sanitizeUrl(url);
   
@@ -136,9 +113,7 @@ function openUrl(url) {
   });
 }
 
-// Command handler
 chrome.commands.onCommand.addListener(async (command) => {
-  // Rate limiting check
   const now = Date.now();
   if (now - lastCommandTime < COMMAND_COOLDOWN_MS) {
     console.log("Command ignored due to rate limiting");
@@ -147,22 +122,18 @@ chrome.commands.onCommand.addListener(async (command) => {
   lastCommandTime = now;
 
   if (command === "open-custom-url") {
-    // Open options page instead of URL
     chrome.runtime.openOptionsPage();
     return;
   }
 
   try {
-    // Get shortcuts from storage
     const shortcuts = await getShortcuts();
     const shortcut = shortcuts.find(s => s.command === command);
     
     if (shortcut && shortcut.url) {
-      // Check URL safety
       const safetyResult = await checkUrlSafety(shortcut.url);
       
       if (safetyResult.isSafe) {
-        // Open the URL
         await openUrl(shortcut.url);
       } else {
         console.warn("URL safety check failed:", safetyResult.message, shortcut.url);
@@ -173,18 +144,15 @@ chrome.commands.onCommand.addListener(async (command) => {
   }
 });
 
-// License API credentials - stored securely in background context
 const API_CREDENTIALS = {
   consumerKey: 'ck_9eeb9517833188c72cdf4d94dac63f6cbc18ba3c',
   consumerSecret: 'cs_6ac366de7eae5804493d735e58d08b85db8944cb'
 };
 
-// Helper function for authorization
 function getAuthorizationHeader() {
   return btoa(`${API_CREDENTIALS.consumerKey}:${API_CREDENTIALS.consumerSecret}`);
 }
 
-// Function to handle license API requests securely from the background
 async function handleLicenseApiRequest(message, sendResponse) {
   try {
     const { endpoint, licenseKey } = message;
@@ -228,12 +196,9 @@ async function handleLicenseApiRequest(message, sendResponse) {
   }
 }
 
-// URL validation function for form validation
 function validateUrl(string) {
-  // Handle empty strings
   if (!string || string.trim() === '') return false;
   
-  // Add protocol if missing
   let url = string.trim();
   if (!url.startsWith('http://') && !url.startsWith('https://')) {
     url = 'https://' + url;
@@ -241,18 +206,14 @@ function validateUrl(string) {
   
   try { 
     const urlObj = new URL(url);
-    // Additional validation - must have a valid hostname with at least one dot
     return urlObj.hostname && urlObj.hostname.includes('.') && 
-           // Basic check that hostname follows domain name rules
            /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9](\.[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9])+$/.test(urlObj.hostname);
   } catch (_) {
     return false;
   }
 }
 
-// CONSOLIDATED message handler for all action types
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // Validate message structure
   if (!message || typeof message !== 'object' || !message.action) {
     console.error("Invalid message format received");
     sendResponse({success: false, error: "Invalid message format"});
@@ -271,7 +232,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             details: error.message
           });
         });
-      return true; // Required for async response
+      return true;
     
     case "openOptions":
       try {
@@ -289,7 +250,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     
     case "validateUrl":
       try {
-        // Ensure URL is provided
         if (!message.url || typeof message.url !== 'string') {
           sendResponse({
             success: false, 
@@ -320,9 +280,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true;
       
     case "licenseApiRequest":
-      // Handle license API requests
       handleLicenseApiRequest(message, sendResponse);
-      return true; // Keep the message channel open for async response
+      return true; 
       
     default:
       console.warn("Unknown message action received:", message.action);
@@ -335,10 +294,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-// Install handler
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === "install") {
-    // Open options page when extension is first installed
     chrome.runtime.openOptionsPage();
   }
 });
