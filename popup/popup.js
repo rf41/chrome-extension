@@ -76,8 +76,8 @@ function displayUserStats() {
       
       // Update UI based on license status
       if (licenseInfo.isActive) {
-        memberStatusEl.textContent = 'Premium';
-        memberStatusEl.style.color = '#34a853';
+        memberStatusEl.textContent = 'Premium'; // Keep star symbol
+        memberStatusEl.classList.add('premium-badge');
       }
     })
     .catch(error => {
@@ -92,53 +92,28 @@ function displayUserStats() {
   // Function to check license status
   function checkLicenseStatus() {
     return new Promise((resolve, reject) => {
-      // First check if license data is in storage
-      chrome.storage.sync.get(['license', 'licenseKey'], (syncData) => {
-        // If we have license data in storage, use that
-        if (syncData.license && syncData.license.status === 'active') {
-          resolve({ isActive: true, source: 'sync-storage' });
+      // First check for premiumStatus object - this is the source of truth
+      chrome.storage.sync.get(['premiumStatus'], (syncData) => {
+        // If we have premiumStatus in storage and it's active, use that
+        if (syncData.premiumStatus && syncData.premiumStatus.active === true) {
+          resolve({ isActive: true, source: 'premium-status' });
           return;
         }
         
-        // If we have a license key but no license data, check with the API
-        if (syncData.licenseKey) {
-          chrome.runtime.sendMessage({
-            action: "licenseApiRequest",
-            endpoint: "/wp-json/wc/v3/products/licenses/",
-            licenseKey: syncData.licenseKey
-          }, response => {
-            if (chrome.runtime.lastError) {
-              reject(chrome.runtime.lastError);
-              return;
-            }
-            
-            if (response && response.data) {
-              // Check if the license is active
-              const license = response.data;
-              const isActive = license.status === 'active';
-              resolve({ isActive, source: 'api', license });
-            } else if (response && response.error) {
-              reject(new Error(response.error));
-            } else {
-              resolve({ isActive: false, source: 'api-no-data' });
-            }
-          });
-          return;
-        }
-        
-        // Also check local storage
-        chrome.storage.local.get(['license', 'licenseKey'], (localData) => {
-          if (localData.license && localData.license.status === 'active') {
-            resolve({ isActive: true, source: 'local-storage' });
+        // Fall back to checking license data
+        chrome.storage.sync.get(['license', 'licenseKey'], (licenseData) => {
+          // If we have license data in storage, use that
+          if (licenseData.license && licenseData.license.status === 'active') {
+            resolve({ isActive: true, source: 'sync-storage' });
             return;
           }
           
-          // If we have a license key in local but no license data, check with the API
-          if (localData.licenseKey) {
+          // If we have a license key but no license data, check with the API
+          if (licenseData.licenseKey) {
             chrome.runtime.sendMessage({
               action: "licenseApiRequest",
               endpoint: "/wp-json/wc/v3/products/licenses/",
-              licenseKey: localData.licenseKey
+              licenseKey: licenseData.licenseKey
             }, response => {
               if (chrome.runtime.lastError) {
                 reject(chrome.runtime.lastError);
@@ -149,24 +124,58 @@ function displayUserStats() {
                 // Check if the license is active
                 const license = response.data;
                 const isActive = license.status === 'active';
-                resolve({ isActive, source: 'api-local', license });
+                resolve({ isActive, source: 'api', license });
               } else if (response && response.error) {
                 reject(new Error(response.error));
               } else {
-                resolve({ isActive: false, source: 'api-local-no-data' });
+                resolve({ isActive: false, source: 'api-no-data' });
               }
             });
             return;
           }
           
-          // If we don't have any license data, check for premium status in userData
-          chrome.storage.sync.get(['userData'], (userData) => {
-            if (userData.userData && userData.userData.premium === true) {
-              resolve({ isActive: true, source: 'userData' });
-            } else {
-              // No license data found anywhere
-              resolve({ isActive: false, source: 'no-data' });
+          // Also check local storage
+          chrome.storage.local.get(['license', 'licenseKey'], (localData) => {
+            if (localData.license && localData.license.status === 'active') {
+              resolve({ isActive: true, source: 'local-storage' });
+              return;
             }
+            
+            // If we have a license key in local but no license data, check with the API
+            if (localData.licenseKey) {
+              chrome.runtime.sendMessage({
+                action: "licenseApiRequest",
+                endpoint: "/wp-json/wc/v3/products/licenses/",
+                licenseKey: localData.licenseKey
+              }, response => {
+                if (chrome.runtime.lastError) {
+                  reject(chrome.runtime.lastError);
+                  return;
+                }
+                
+                if (response && response.data) {
+                  // Check if the license is active
+                  const license = response.data;
+                  const isActive = license.status === 'active';
+                  resolve({ isActive, source: 'api-local', license });
+                } else if (response && response.error) {
+                  reject(new Error(response.error));
+                } else {
+                  resolve({ isActive: false, source: 'api-local-no-data' });
+                }
+              });
+              return;
+            }
+            
+            // If we don't have any license data, check for premium status in userData
+            chrome.storage.sync.get(['userData'], (userData) => {
+              if (userData.userData && userData.userData.premium === true) {
+                resolve({ isActive: true, source: 'userData' });
+              } else {
+                // No license data found anywhere
+                resolve({ isActive: false, source: 'no-data' });
+              }
+            });
           });
         });
       });

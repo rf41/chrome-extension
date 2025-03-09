@@ -131,3 +131,12 @@ body {
     padding-top: 10px;
     border-top: 1px solid #eee;
   }
+  
+  /* Premium status styling */
+  .premium-badge {
+    color: #34a853;
+    background-color: #FFD700;
+    padding: 2px 5px;
+    border-radius: 3px;
+    display: inline-block;
+  }

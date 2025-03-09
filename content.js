@@ -689,7 +689,7 @@ function createShortcutPanel() {
     if (premium) {
       const premiumBadge = createElement('span', {
         className: 'premium-badge-small'
-      }, 'PRO');
+      }, 'PREMIUM');
       
       const headerText = header.querySelector('h3');
       if (headerText) {
