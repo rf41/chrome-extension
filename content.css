@@ -27,7 +27,7 @@
   font-size: 14px !important;
   line-height: 1.5 !important;
   --panel-expanded-width: 320px;
-  --panel-expanded-height: 460px;
+  --panel-expanded-height: 360px;
   --panel-collapsed-width: 48px;
   --panel-collapsed-height: 48px;
   transition: none; /* Remove transition */
