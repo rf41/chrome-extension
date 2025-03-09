@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Custom Shortcut Options</title>
+  <title>Smart Shortcut Panel</title>
   <link rel="stylesheet" href="options.css">
   </head>
 <body>
@@ -11,7 +11,7 @@
     <span id="extensionIcon" class="extension-icon" style="display: inline-flex; vertical-align: middle;">
       <img src="../icons/icon48.png" alt="Extension Icon" width="24" height="24">
     </span> 
-    <span style="vertical-align: middle;">Quick Site Shortcuts</span>
+    <span style="vertical-align: middle;">Smart Shortcut Panel</span>
   </h1>
 
   <div class="premium-status-container">
@@ -19,59 +19,64 @@
   </div>
 
   <div class="shortcut-note highlight">
-    <h2>Welcome to Quick Site Shortcuts!</h2>
+    <h2>Smart Shortcut Panel 🚀</h2>
+    <h3>Navigate Faster, Work Smarter</h3>
     
-    <p>This extension helps you navigate faster by providing quick access to your favorite websites with just one click or keyboard shortcut.</p>
+    <p>Tired of clicking through multiple pages just to get where you need to go? Smart Shortcut Panel is the ultimate floating shortcut widget that gives you instant access to key pages—without digging through bookmarks or navigating step by step.</p>
 
     <div class="features-container">
-      <h3>🚀 Key Features</h3>
+      <h3>✨ Why Use Smart Shortcut Panel Instead of Bookmarks?</h3>
       <ul>
-        <li><strong>Quick Access Panel</strong> - A floating widget that appears on any webpage for immediate access to your shortcuts</li>
-        <li><strong>Smart Domain Recognition</strong> - Shortcuts appear only on relevant websites you specify</li>
-        <li><strong>Keyboard Shortcuts</strong> - Launch websites instantly using customizable keyboard combinations</li>
-        <li><strong>Easy Organization</strong> - Sort and manage your shortcuts with a simple interface</li>
+        <li><strong>✅ No More Clutter</strong> – Bookmark bars get messy, but our floating widget shows shortcuts only when needed, based on the website you're on.</li>
+        <li><strong>✅ Always Within Reach</strong> – Unlike bookmarks stuck at the top, you can position the panel anywhere for easy access.</li>
+        <li><strong>✅ Smarter Navigation</strong> – No need to open intermediate pages—jump directly to the content you need.</li>
       </ul>
     </div>
+
 
     <!-- Collapsible sections -->
     <div class="collapsible-sections">
       <div class="collapsible-container">
-        <button class="collapsible-header">
-          <span class="collapsible-icon">▶</span>
+        <button class="collapsible-header active">
+          <span class="collapsible-icon">▼</span>
+          <h3>🚀 Key Features</h3>
+        </button>
+        <div class="collapsible-content" style="display: block;">
+          <ol>
+            <li><strong>📌 Floating Shortcut Panel</strong> – Your personalized shortcut menu that appears dynamically on relevant sites.</li>
+            <li><strong>🌐 Domain-Smart Shortcuts</strong> – Shortcuts only show up where they're useful—keeping your workspace clean.</li>
+            <li><strong>⚡ One-Click Instant Access</strong> – Skip unnecessary steps and jump straight to the right page.</li>
+            <li><strong>🛠️ Easy Setup & Management</strong> – Quickly add, edit, and organize shortcuts without hassle.</li>
+            <li><strong>⌨️ (Bonus) Keyboard Shortcuts</strong> – Prefer the keyboard? Assign shortcut keys for even faster navigation.</li>
+          </ol>
+          <p>Configure keyboard shortcuts <a style="color:blue;cursor: pointer;text-decoration: underline;" id="openShortcutsPage" class="link-button">here</a> for even faster access</p>
+        </div>
+      </div>
+
+      <div class="collapsible-container">
+        <button class="collapsible-header active">
+          <span class="collapsible-icon">▼</span>
           <h3>🔰 Getting Started (3 Simple Steps)</h3>
         </button>
-        <div class="collapsible-content">
+        <div class="collapsible-content" style="display: block;">
           <ol>
-            <li><strong>Add a Quick Site Shortcut</strong> - Fill in the form below with a website name, URL, and optional keyboard shortcut</li>
-            <li><strong>Configure Keyboard Shortcut</strong> - Visit Chrome's extension shortcuts page <a style="color:blue;cursor: pointer;text-decoration: underline;" id="openShortcutsPage" class="link-button">here</a> to set up keyboard commands for quick access</li>
-            <li><strong>Start Using</strong> - Visit your selected websites and use the floating panel or keyboard shortcuts!</li>
+            <li><strong>1️⃣ Add a Shortcut</strong> – Enter a website name, URL, and (optional) keyboard shortcut.</li>
+            <li><strong>2️⃣ Customize the Panel</strong> – Choose where your shortcuts appear for a streamlined experience.</li>
+            <li><strong>3️⃣ Start Navigating Smarter!</strong> – Use the floating panel or keyboard shortcuts to jump directly to important pages.</li>
           </ol>
+          <p>Configure keyboard shortcuts <a style="color:blue;cursor: pointer;text-decoration: underline;" id="openShortcutsPage" class="link-button">here</a> for even faster access</p>
         </div>
       </div>
 
       <div class="collapsible-container">
-        <button class="collapsible-header">
-          <span class="collapsible-icon">▶</span>
-          <h3>💡 Productivity Tips</h3>
+        <button class="collapsible-header active">
+          <span class="collapsible-icon">▼</span>
+          <h3>🎯 Free vs. Premium</h3>
         </button>
-        <div class="collapsible-content">
+        <div class="collapsible-content" style="display: block;">
           <ul>
-            <li><strong>Work Shortcuts</strong> - Group shortcuts for each project or work environment</li>
-            <li><strong>Daily Tools</strong> - Add shortcuts to tools you use daily (email, calendar, docs)</li>
-            <li><strong>Research Assistant</strong> - Create shortcuts to reference sites and search tools</li>
-          </ul>
-        </div>
-      </div>
-
-      <div class="collapsible-container">
-        <button class="collapsible-header">
-          <span class="collapsible-icon">▶</span>
-          <h3>Free vs Premium</h3>
-        </button>
-        <div class="collapsible-content">
-          <ul>
-            <li><strong>Free:</strong> Up to 3 shortcuts per domain</li>
-            <li><strong>Premium:</strong> Unlimited shortcuts per domain for maximum productivity</li>
+            <li><strong>🔹 Free:</strong> Up to 3 shortcuts per domain.</li>
+            <li><strong>🔹 Premium:</strong> Unlimited shortcuts, full productivity boost!</li>
             <li>One-time purchase - no subscription required!</li>
           </ul>
         </div>
@@ -79,8 +84,13 @@
     </div>
     
     <p>Need help? Follow this full guide for detailed instructions <button id="shortcutGuideBtn" class="inline-button">Show Guide</button></p>
+    
+    <div class="cta-message">
+      <p>📌 Stop wasting time—boost your productivity with Smart Shortcut Panel today! 🚀</p>
+    </div>
   </div>  
 
+  <div>
     <h2>⚡ Create New Quick Site Shortcut</h2>
     <p>Fill out the form below to add a new quick site shortcut to your collection.</p>
 
@@ -122,7 +132,7 @@
           <th class="sortable" data-sort="command">Command ID <span class="sort-icon">↕</span></th>
           <th class="sortable" data-sort="title">Title <span class="sort-icon">↕</span></th>
           <th class="sortable" data-sort="url">URL <span class="sort-icon">↕</span></th>
-          <th>Keyboard Shortcut <span class="optional-badge">optional</span></th>
+          <th>Keyboard Shortcut </th>
           <th class="sortable" data-sort="domain">Target Domains <span class="sort-icon">↕</span></th>
           <th>Actions</th>
         </tr>

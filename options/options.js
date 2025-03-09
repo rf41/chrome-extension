@@ -555,7 +555,6 @@ function loadCustomShortcuts(sortColumn = 'domain', sortDirection = 'asc') {
             ${shortcut.command ? 
               '<span class="shortcut-binding">Set in chrome://extensions/shortcuts</span>' : 
               '<span class="no-command">No command ID assigned</span>'}
-            <span class="optional-badge">optional</span>
           </td>
           <td class="domain-cell">${domain}</td>
           <td>
@@ -649,8 +648,19 @@ function updateShortcutDisplayTable() {
         if (shortcutMap[command.name]) {
           const shortcutElem = document.querySelector(`[data-command-id="${command.name}"] .shortcut-binding`);
           if (shortcutElem) {
-            shortcutElem.textContent = command.shortcut || 'Not set';
-            shortcutElem.style.color = command.shortcut ? 'green' : 'red';
+            shortcutElem.textContent = "Set here";
+            shortcutElem.style.color = command.shortcut ? 'green' : 'blue';
+            shortcutElem.style.cursor = 'pointer';
+            shortcutElem.style.textDecoration = 'underline';
+            
+            // Remove any existing event listeners
+            const newElem = shortcutElem.cloneNode(true);
+            shortcutElem.parentNode.replaceChild(newElem, shortcutElem);
+            
+            // Add click event listener to open Chrome shortcuts page
+            newElem.addEventListener('click', function() {
+              chrome.tabs.create({url: 'chrome://extensions/shortcuts'});
+            });
           }
         }
       });
@@ -1886,3 +1896,14 @@ function updateLicenseDetails() {
     }
   });
 }
+
+// Add event listener for the shortcuts page links
+document.addEventListener('DOMContentLoaded', function() {
+  const shortcutLinks = document.querySelectorAll('#openShortcutsPage');
+  shortcutLinks.forEach(link => {
+    link.addEventListener('click', function() {
+      chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
+    });
+  });
+  
+});
