@@ -130,6 +130,11 @@ function togglePanel() {
   const panel = document.getElementById('shortcut-ext-panel');
   if (!panel) return;
   
+  // Don't toggle if panel was recently dragged
+  if (panel.getAttribute('data-recently-dragged') === 'true') {
+    return;
+  }
+  
   if (panel.classList.contains('shortcut-ext-expanded')) {
     // Collapse panel - restore original size
     panel.classList.remove('shortcut-ext-expanded');
@@ -388,6 +393,14 @@ function makeElementDraggable(element, handle) {
       
       // Save the new position to storage
       savePosition(element);
+      
+      // Set a flag on the element to indicate recent drag ended
+      element.setAttribute('data-recently-dragged', 'true');
+      
+      // Clear the drag flag after a short delay
+      setTimeout(() => {
+        element.removeAttribute('data-recently-dragged');
+      }, 300); // 300ms should be enough to prevent accidental clicks
       
       // Prevent accidental click after drag
       const preventClick = (e) => {
@@ -689,7 +702,7 @@ function createShortcutPanel() {
     if (premium) {
       const premiumBadge = createElement('span', {
         className: 'premium-badge-small'
-      }, 'PREMIUM');
+      }, 'Premium');
       
       const headerText = header.querySelector('h3');
       if (headerText) {

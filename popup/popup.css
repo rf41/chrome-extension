@@ -134,7 +134,7 @@ body {
   
   /* Premium status styling */
   .premium-badge {
-    color: #34a853;
+    color: #333;
     background-color: #FFD700;
     padding: 2px 5px;
     border-radius: 3px;
