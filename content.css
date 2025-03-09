@@ -21,7 +21,6 @@
   transition: none !important; /* Remove transition */
   border-radius: 12px !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 5px 10px rgba(0, 0, 0, 0.05) !important;
-  background: #ffffff !important;
   overflow: hidden !important;
   max-width: 380px !important;
   border: none !important;
@@ -42,7 +41,6 @@
   border-radius: 12px !important;
   background: #005FAC !important;
   border: none !important;
-  color: white !important;
   font-size: 20px !important;
   cursor: pointer !important;
   display: flex !important;
@@ -392,23 +390,6 @@
   margin-bottom: 10px !important;
 }
 
-/* Footer */
-/* 
-.shortcut-ext-footer {
-  padding: 12px 16px !important;
-  text-align: center !important;
-  border-top: 1px solid #f0f0f0 !important;
-  margin-top: auto !important; 
-  background-color: #fff !important;
-  position: sticky !important;
-  bottom: 0 !important;
-  z-index: 10 !important;
-  width: 100% !important;
-  left: 0 !important;
-  box-sizing: border-box !important;
-  flex-shrink: 0 !important; 
-}
-*/
 
 /* Add a section header styling */
 .shortcut-ext-section {
@@ -520,6 +501,7 @@
   flex-direction: column !important;
   height: 100% !important;
   width: 100% !important;
+  background-color: #ffffff !important;
 }
 
 .shortcut-ext-collapsed .shortcut-ext-content-wrapper {
