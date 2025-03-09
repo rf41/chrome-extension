@@ -82,6 +82,45 @@ function isPremiumUser() {
   });
 }
 
+/**
+ * Safely create HTML element with properties
+ * @param {string} tag - HTML tag name
+ * @param {Object} props - Properties to set
+ * @param {string|Array} children - Child content or elements
+ * @returns {HTMLElement} Created element
+ */
+function createElement(tag, props = {}, children = null) {
+  const element = document.createElement(tag);
+  
+  // Set properties safely
+  Object.keys(props).forEach(key => {
+    if (key === 'className') {
+      element.className = props[key];
+    } else if (key === 'style') {
+      Object.assign(element.style, props[key]);
+    } else {
+      element.setAttribute(key, props[key]);
+    }
+  });
+  
+  // Add children
+  if (children) {
+    if (Array.isArray(children)) {
+      children.forEach(child => {
+        if (child instanceof HTMLElement) {
+          element.appendChild(child);
+        } else if (child) {
+          element.appendChild(document.createTextNode(child));
+        }
+      });
+    } else if (typeof children === 'string') {
+      element.textContent = children;
+    }
+  }
+  
+  return element;
+}
+
 // ===== UI COMPONENTS AND BEHAVIORS =====
 
 /**
@@ -328,71 +367,178 @@ function createShortcutPanel() {
   if (document.getElementById('shortcut-ext-panel')) return;
   
   // Create panel container
-  const panel = document.createElement('div');
-  panel.id = 'shortcut-ext-panel';
-  panel.className = 'shortcut-ext-panel shortcut-ext-collapsed';
+  const panel = createElement('div', {
+    id: 'shortcut-ext-panel',
+    className: 'shortcut-ext-panel shortcut-ext-collapsed'
+  });
   
   // Create toggle button
-  const toggleBtn = document.createElement('button');
-  toggleBtn.id = 'shortcut-ext-toggle';
-  toggleBtn.className = 'shortcut-ext-toggle';
-  toggleBtn.setAttribute('aria-label', 'Toggle shortcuts panel');
-  toggleBtn.innerHTML = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="2" y="4" width="20" height="16" rx="2"></rect>
-      <path d="M6 8h.01"></path>
-      <path d="M10 8h.01"></path>
-      <path d="M14 8h.01"></path>
-      <path d="M18 8h.01"></path>
-      <path d="M8 12h.01"></path>
-      <path d="M12 12h.01"></path>
-      <path d="M16 12h.01"></path>
-      <path d="M7 16h10"></path>
-    </svg>
-  `;
+  const toggleSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  toggleSvg.setAttribute("width", "24");
+  toggleSvg.setAttribute("height", "24");
+  toggleSvg.setAttribute("viewBox", "0 0 24 24");
+  toggleSvg.setAttribute("fill", "none");
+  toggleSvg.setAttribute("stroke", "currentColor");
+  toggleSvg.setAttribute("stroke-width", "2");
+  toggleSvg.setAttribute("stroke-linecap", "round");
+  toggleSvg.setAttribute("stroke-linejoin", "round");
+  
+  // Create rect element
+  const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  rect.setAttribute("x", "2");
+  rect.setAttribute("y", "4");
+  rect.setAttribute("width", "20");
+  rect.setAttribute("height", "16");
+  rect.setAttribute("rx", "2");
+  toggleSvg.appendChild(rect);
+  
+  // Add paths for toggle button icon
+  const paths = [
+    ["M6 8h.01"], ["M10 8h.01"], ["M14 8h.01"], ["M18 8h.01"],
+    ["M8 12h.01"], ["M12 12h.01"], ["M16 12h.01"], ["M7 16h10"]
+  ];
+  
+  paths.forEach(d => {
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", d[0]);
+    toggleSvg.appendChild(path);
+  });
+  
+  const toggleBtn = createElement('button', {
+    id: 'shortcut-ext-toggle',
+    className: 'shortcut-ext-toggle',
+    'aria-label': 'Toggle shortcuts panel'
+  });
+  toggleBtn.appendChild(toggleSvg);
   
   // Create content wrapper
-  const contentWrapper = document.createElement('div');
-  contentWrapper.className = 'shortcut-ext-content-wrapper';
+  const contentWrapper = createElement('div', {
+    className: 'shortcut-ext-content-wrapper'
+  });
   
   // Create header
-  const header = document.createElement('div');
-  header.className = 'shortcut-ext-header';
-  header.innerHTML = `
-    <h3>Shortcuts for this site</h3>
-    <div class="shortcut-ext-header-actions">
-      <button id="shortcut-ext-settings" class="shortcut-ext-button" aria-label="Settings">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="3"></circle>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-        </svg>
-      </button>
-      <button id="shortcut-ext-close" class="shortcut-ext-close" aria-label="Close">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
-      </button>
-    </div>
-  `;
+  const header = createElement('div', {
+    className: 'shortcut-ext-header'
+  });
+  
+  const headerTitle = createElement('h3', {}, 'Shortcuts for this site');
+  header.appendChild(headerTitle);
+  
+  const headerActions = createElement('div', {
+    className: 'shortcut-ext-header-actions'
+  });
+  
+  // Settings button with SVG
+  const settingsSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  settingsSvg.setAttribute("width", "18");
+  settingsSvg.setAttribute("height", "18");
+  settingsSvg.setAttribute("viewBox", "0 0 24 24");
+  settingsSvg.setAttribute("fill", "none");
+  settingsSvg.setAttribute("stroke", "currentColor");
+  settingsSvg.setAttribute("stroke-width", "2");
+  settingsSvg.setAttribute("stroke-linecap", "round");
+  settingsSvg.setAttribute("stroke-linejoin", "round");
+  
+  const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  circle.setAttribute("cx", "12");
+  circle.setAttribute("cy", "12");
+  circle.setAttribute("r", "3");
+  settingsSvg.appendChild(circle);
+  
+  const settingsPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  settingsPath.setAttribute("d", "M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z");
+  settingsSvg.appendChild(settingsPath);
+  
+  const settingsBtn = createElement('button', {
+    id: 'shortcut-ext-settings',
+    className: 'shortcut-ext-button',
+    'aria-label': 'Settings'
+  });
+  settingsBtn.appendChild(settingsSvg);
+  headerActions.appendChild(settingsBtn);
+  
+  // Close button with SVG
+  const closeSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  closeSvg.setAttribute("width", "20");
+  closeSvg.setAttribute("height", "20");
+  closeSvg.setAttribute("viewBox", "0 0 24 24");
+  closeSvg.setAttribute("fill", "none");
+  closeSvg.setAttribute("stroke", "currentColor");
+  closeSvg.setAttribute("stroke-width", "2");
+  closeSvg.setAttribute("stroke-linecap", "round");
+  closeSvg.setAttribute("stroke-linejoin", "round");
+  
+  const line1 = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  line1.setAttribute("x1", "18");
+  line1.setAttribute("y1", "6");
+  line1.setAttribute("x2", "6");
+  line1.setAttribute("y2", "18");
+  closeSvg.appendChild(line1);
+  
+  const line2 = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  line2.setAttribute("x1", "6");
+  line2.setAttribute("y1", "6");
+  line2.setAttribute("x2", "18");
+  line2.setAttribute("y2", "18");
+  closeSvg.appendChild(line2);
+  
+  const closeBtn = createElement('button', {
+    id: 'shortcut-ext-close',
+    className: 'shortcut-ext-close',
+    'aria-label': 'Close'
+  });
+  closeBtn.appendChild(closeSvg);
+  headerActions.appendChild(closeBtn);
+  header.appendChild(headerActions);
   
   // Create search box
-  const searchBox = document.createElement('div');
-  searchBox.className = 'shortcut-ext-search';
-  searchBox.innerHTML = `
-    <div class="shortcut-ext-search-container">
-      <svg class="shortcut-ext-search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="11" cy="11" r="8"></circle>
-        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-      </svg>
-      <input type="text" id="shortcut-ext-search-input" placeholder="Search shortcuts...">
-    </div>
-  `;
+  const searchBox = createElement('div', {
+    className: 'shortcut-ext-search'
+  });
+  
+  const searchContainer = createElement('div', {
+    className: 'shortcut-ext-search-container'
+  });
+  
+  const searchSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  searchSvg.setAttribute("class", "shortcut-ext-search-icon");
+  searchSvg.setAttribute("width", "16");
+  searchSvg.setAttribute("height", "16");
+  searchSvg.setAttribute("viewBox", "0 0 24 24");
+  searchSvg.setAttribute("fill", "none");
+  searchSvg.setAttribute("stroke", "currentColor");
+  searchSvg.setAttribute("stroke-width", "2");
+  searchSvg.setAttribute("stroke-linecap", "round");
+  searchSvg.setAttribute("stroke-linejoin", "round");
+  
+  const searchCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  searchCircle.setAttribute("cx", "11");
+  searchCircle.setAttribute("cy", "11");
+  searchCircle.setAttribute("r", "8");
+  searchSvg.appendChild(searchCircle);
+  
+  const searchLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  searchLine.setAttribute("x1", "21");
+  searchLine.setAttribute("y1", "21");
+  searchLine.setAttribute("x2", "16.65");
+  searchLine.setAttribute("y2", "16.65");
+  searchSvg.appendChild(searchLine);
+  
+  searchContainer.appendChild(searchSvg);
+  
+  const searchInput = createElement('input', {
+    type: 'text',
+    id: 'shortcut-ext-search-input',
+    placeholder: 'Search shortcuts...'
+  });
+  searchContainer.appendChild(searchInput);
+  searchBox.appendChild(searchContainer);
   
   // Create shortcuts container
-  const shortcutsContainer = document.createElement('div');
-  shortcutsContainer.id = 'shortcut-ext-shortcuts';
-  shortcutsContainer.className = 'shortcut-ext-shortcuts';
+  const shortcutsContainer = createElement('div', {
+    id: 'shortcut-ext-shortcuts',
+    className: 'shortcut-ext-shortcuts'
+  });
   
   // Assemble panel
   contentWrapper.appendChild(header);
@@ -408,20 +554,17 @@ function createShortcutPanel() {
   toggleBtn.addEventListener('click', togglePanel);
   
   // Settings button
-  const settingsBtn = document.getElementById('shortcut-ext-settings');
   settingsBtn.addEventListener('click', () => {
     chrome.runtime.sendMessage({action: "openOptions"});
   });
   
   // Close button
-  const closeBtn = document.getElementById('shortcut-ext-close');
   closeBtn.addEventListener('click', () => {
     panel.classList.remove('shortcut-ext-expanded');
     panel.classList.add('shortcut-ext-collapsed');
   });
   
   // Search functionality
-  const searchInput = document.getElementById('shortcut-ext-search-input');
   searchInput.addEventListener('input', (e) => {
     const query = e.target.value.toLowerCase().trim();
     const items = document.querySelectorAll('.shortcut-ext-item');
@@ -433,14 +576,14 @@ function createShortcutPanel() {
     });
   });
   
-  // Click outside to close
+  // Click outside to close - use event capturing to prevent closing when clicking inside
   document.addEventListener('click', (e) => {
     if (panel.classList.contains('shortcut-ext-expanded') && 
         !panel.contains(e.target)) {
       panel.classList.remove('shortcut-ext-expanded');
       panel.classList.add('shortcut-ext-collapsed');
     }
-  });
+  }, true);
   
   // Set position from storage
   chrome.storage.sync.get(['panelPosition'], (result) => {
@@ -461,9 +604,14 @@ function createShortcutPanel() {
   // Check premium status and add badge if premium
   isPremiumUser().then(premium => {
     if (premium) {
+      const premiumBadge = createElement('span', {
+        className: 'premium-badge-small'
+      }, 'PRO');
+      
       const headerText = header.querySelector('h3');
       if (headerText) {
-        headerText.innerHTML = `Shortcuts for this site <span class="premium-badge-small">PRO</span>`;
+        headerText.textContent = 'Shortcuts for this site ';
+        headerText.appendChild(premiumBadge);
       }
     }
   });
@@ -480,19 +628,25 @@ function loadShortcuts() {
   if (!container) return;
   
   // Show loading
-  container.innerHTML = `
-    <div class="shortcut-ext-loading">
-      <div class="shortcut-ext-spinner"></div>
-      <p>Loading shortcuts...</p>
-    </div>
-  `;
+  container.textContent = '';
+  const loadingEl = createElement('div', { className: 'shortcut-ext-loading' });
+  const spinner = createElement('div', { className: 'shortcut-ext-spinner' });
+  const loadingText = createElement('p', {}, 'Loading shortcuts...');
+  
+  loadingEl.appendChild(spinner);
+  loadingEl.appendChild(loadingText);
+  container.appendChild(loadingEl);
   
   const currentDomain = getCurrentDomain();
   
-  // Request shortcuts from background
-  chrome.runtime.sendMessage({action: "getShortcuts"}, (response) => {
+  // Request shortcuts from background with origin validation
+  chrome.runtime.sendMessage({
+    action: "getShortcuts",
+    origin: window.location.origin
+  }, (response) => {
     if (!response || !response.shortcuts) {
-      container.innerHTML = '<p class="shortcut-ext-empty">No shortcuts found</p>';
+      container.textContent = '';
+      container.appendChild(createElement('p', { className: 'shortcut-ext-empty' }, 'No shortcuts found'));
       return;
     }
     
@@ -511,50 +665,67 @@ function loadShortcuts() {
     const shortcuts = [...domainShortcuts, ...generalShortcuts];
     
     if (shortcuts.length === 0) {
-      container.innerHTML = '<p class="shortcut-ext-empty">No shortcuts found for this site</p>';
+      container.textContent = '';
+      container.appendChild(createElement('p', { className: 'shortcut-ext-empty' }, 'No shortcuts found for this site'));
       return;
     }
     
-    // Build HTML safely
-    let html = '<div class="shortcut-ext-grid">';
+    // Clear container
+    container.textContent = '';
+    const grid = createElement('div', { className: 'shortcut-ext-grid' });
+    
+    // Build elements safely
     shortcuts.forEach(shortcut => {
       if (!shortcut.title || !shortcut.url) return;
       
-      // Safely encode values
-      const title = escapeHTML(shortcut.title);
-      const url = escapeHTML(shortcut.url);
-      const initials = getInitials(shortcut.title);
-      const bgColor = getColorFromText(shortcut.title);
+      // Safely create URL path
+      let urlPath = '/';
+      try {
+        urlPath = new URL(shortcut.url).pathname;
+      } catch (e) {
+        // Keep default path
+      }
+      
       const isSiteSpecific = shortcut.domains && shortcut.domains.some(domain => 
         isDomainMatch(domain, currentDomain)
       );
       
-      let urlPath = '';
-      try {
-        urlPath = escapeHTML(new URL(shortcut.url).pathname);
-      } catch (e) {
-        urlPath = '/';
+      // Create item element
+      const item = createElement('div', {
+        className: `shortcut-ext-item${isSiteSpecific ? ' site-specific' : ''}`,
+        'data-title': shortcut.title,
+        'data-url': shortcut.url
+      });
+      
+      const link = createElement('a', {
+        className: 'shortcut-ext-link',
+        href: shortcut.url
+      });
+      
+      const iconWrapper = createElement('div', {
+        className: 'shortcut-ext-icon-wrapper',
+        style: {
+          backgroundColor: getColorFromText(shortcut.title)
+        }
+      });
+      
+      if (isSiteSpecific) {
+        iconWrapper.appendChild(createElement('span', { className: 'site-badge' }, '★'));
       }
       
-      html += `
-        <div class="shortcut-ext-item${isSiteSpecific ? ' site-specific' : ''}" data-title="${title}" data-url="${url}">
-          <a href="${url}" class="shortcut-ext-link">
-            <div class="shortcut-ext-icon-wrapper" style="background-color: ${bgColor}">
-              ${isSiteSpecific ? '<span class="site-badge">★</span>' : ''}
-              <span class="shortcut-ext-initials">${initials}</span>
-            </div>
-            <div class="shortcut-ext-details">
-              <span class="shortcut-ext-title">${title}</span>
-              <span class="shortcut-ext-url">${urlPath}</span>
-            </div>
-          </a>
-        </div>
-      `;
+      iconWrapper.appendChild(createElement('span', { className: 'shortcut-ext-initials' }, getInitials(shortcut.title)));
+      link.appendChild(iconWrapper);
+      
+      const details = createElement('div', { className: 'shortcut-ext-details' });
+      details.appendChild(createElement('span', { className: 'shortcut-ext-title' }, shortcut.title));
+      details.appendChild(createElement('span', { className: 'shortcut-ext-url' }, urlPath));
+      
+      link.appendChild(details);
+      item.appendChild(link);
+      grid.appendChild(item);
     });
-    html += '</div>';
     
-    // Update container
-    container.innerHTML = html;
+    container.appendChild(grid);
     
     // Add click handlers for shortcuts
     container.querySelectorAll('.shortcut-ext-link').forEach(link => {
@@ -563,7 +734,11 @@ function loadShortcuts() {
         const url = link.getAttribute('href');
         if (url) {
           // Validate URL before opening
-          chrome.runtime.sendMessage({action: "validateUrl", url}, (response) => {
+          chrome.runtime.sendMessage({
+            action: "validateUrl", 
+            url,
+            origin: window.location.origin
+          }, (response) => {
             if (response && response.isValid) {
               window.location.href = url;
             }
@@ -600,7 +775,10 @@ function escapeHTML(str) {
 function shouldInjectUI() {
   return new Promise(resolve => {
     const currentDomain = getCurrentDomain();
-    chrome.runtime.sendMessage({action: "getShortcuts"}, (response) => {
+    chrome.runtime.sendMessage({
+      action: "getShortcuts",
+      origin: window.location.origin
+    }, (response) => {
       if (response && response.shortcuts && response.shortcuts.length > 0) {
         const hasRelevantShortcuts = response.shortcuts.some(s => 
           !s.domains || !s.domains.length || // General shortcuts
@@ -640,19 +818,28 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// Initialize panel when DOM is ready
+// Initialize with user consent via chrome.storage flag
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', async () => {
-    if (!(await isBlacklistedDomain()) && await shouldInjectUI()) {
-      createShortcutPanel();
-    }
-  });
-} else {
-  // If DOM already loaded
-  Promise.all([isBlacklistedDomain(), shouldInjectUI()])
-    .then(([isBlacklisted, shouldInject]) => {
-      if (!isBlacklisted && shouldInject) {
+    // Check user consent first
+    chrome.storage.sync.get(['panelEnabled'], async (result) => {
+      const consentGiven = result.panelEnabled !== false; // Default to true if not set
+      if (consentGiven && !(await isBlacklistedDomain()) && await shouldInjectUI()) {
         createShortcutPanel();
       }
     });
+  });
+} else {
+  // If DOM already loaded
+  chrome.storage.sync.get(['panelEnabled'], async (result) => {
+    const consentGiven = result.panelEnabled !== false; // Default to true if not set
+    if (consentGiven) {
+      Promise.all([isBlacklistedDomain(), shouldInjectUI()])
+        .then(([isBlacklisted, shouldInject]) => {
+          if (!isBlacklisted && shouldInject) {
+            createShortcutPanel();
+          }
+        });
+    }
+  });
 }
