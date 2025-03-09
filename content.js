@@ -1,5 +1,5 @@
 /**
- * Content script for Quick Site Shortcuts extension
+ * Content script for Smart Shortcut Panel extension
  * Adds a floating panel to access shortcuts on websites
  */
 
@@ -485,7 +485,7 @@ function createShortcutPanel() {
     className: 'shortcut-ext-header'
   });
   
-  const headerTitle = createElement('h3', {}, 'Shortcuts for this site');
+  const headerTitle = createElement('h3', {}, 'Smart Shortcut Panel');
   header.appendChild(headerTitle);
   
   const headerActions = createElement('div', {
@@ -706,7 +706,7 @@ function createShortcutPanel() {
       
       const headerText = header.querySelector('h3');
       if (headerText) {
-        headerText.textContent = 'Shortcuts for this site ';
+        headerText.textContent = 'Smart Shortcut Panel ';
         headerText.appendChild(premiumBadge);
       }
     }

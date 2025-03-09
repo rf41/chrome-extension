@@ -1612,7 +1612,7 @@ function initCollapsibleSections() {
 function showShortcutConfigGuide() {
   const guideContent = `
     <div class="guide-container">
-      <h2>📘 Complete Guide: Getting The Most From Quick Site Shortcuts</h2>
+      <h2>📘 Complete Guide: Getting The Most From Smart Shortcut Panel</h2>
       
       <div class="guide-section">
         <h3>Detailed Setup</h3>
@@ -1627,7 +1627,7 @@ function showShortcutConfigGuide() {
                       <li>Or from Chrome menu: Settings → Extensions → ⋮ (menu) → Keyboard shortcuts</li>
                   </ul>
               </li>
-              <li>Find "Quick Site Shortcuts" in the list of extensions</li>
+              <li>Find "Smart Shortcut Panel" in the list of extensions</li>
               <li>For each command you want to use:
                   <ul>
                       <li>Click the empty input box next to the command name</li>

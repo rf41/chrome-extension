@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Smart Shortcut Panel",
   "version": "1.0",
-  "description": "Quick Site Shortcuts gives you instant access to your most used pages in websites. Create domain-specific shortcuts and navigate with keyboard commands.",
+  "description": "Smart Shortcut Panel gives you instant access to your most used pages in websites. Create domain-specific shortcuts and navigate with keyboard commands.",
   "background": {
     "service_worker": "background.js"
   },
@@ -19,7 +19,7 @@
   "options_page": "options/options.html",
   "action": {
     "default_popup": "popup/popup.html",
-    "default_title": "Quick Site Shortcuts",
+    "default_title": "Smart Shortcut Panel",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
