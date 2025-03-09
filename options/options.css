@@ -690,3 +690,25 @@ th.sort-desc .sort-icon:after {
   border-radius: 3px;
   font-family: monospace;
 }
+.extension-footer {
+  margin-top: 30px;
+  padding-top: 15px;
+  border-top: 1px solid #eee;
+  text-align: center;
+  font-size: 12px;
+  color: #666;
+}
+
+.footer-links a {
+  color: #0078d4;
+  text-decoration: none;
+  margin: 0 10px;
+}
+
+.footer-links a:hover {
+  text-decoration: underline;
+}
+
+.copyright {
+  margin-top: 10px;
+}
