@@ -131,71 +131,84 @@ function togglePanel() {
   if (!panel) return;
   
   if (panel.classList.contains('shortcut-ext-expanded')) {
-    // Collapse panel
+    // Collapse panel - restore original size
     panel.classList.remove('shortcut-ext-expanded');
+    // Important: Remove ALL expansion direction classes when collapsing
     panel.classList.remove('expand-right-down', 'expand-left-down', 'expand-right-up', 'expand-left-up');
     panel.classList.add('shortcut-ext-collapsed');
     
-    // Restore original position
-    const originalRight = panel.getAttribute('data-original-right');
-    const originalBottom = panel.getAttribute('data-original-bottom');
-    const originalLeft = panel.getAttribute('data-original-left');
-    const originalTop = panel.getAttribute('data-original-top');
-    
-    if (originalRight && originalBottom) {
-      panel.style.right = originalRight;
-      panel.style.bottom = originalBottom;
-      panel.style.left = 'auto';
-      panel.style.top = 'auto';
-    } else if (originalLeft && originalTop) {
-      panel.style.left = originalLeft;
-      panel.style.top = originalTop;
-      panel.style.right = 'auto';
-      panel.style.bottom = 'auto';
-    }
+    // Clear any expansion-related margins that might have been applied
+    panel.style.margin = '0';
     
     return;
   }
   
-  // Store original position before expanding
-  const style = window.getComputedStyle(panel);
-  if (style.right !== 'auto' && style.bottom !== 'auto') {
-    panel.setAttribute('data-original-right', style.right);
-    panel.setAttribute('data-original-bottom', style.bottom);
-  } else {
-    panel.setAttribute('data-original-left', style.left);
-    panel.setAttribute('data-original-top', style.top);
-  }
-  
-  // Determine expansion direction based on available space
+  // When expanding, we need to determine the best expansion direction
+  // based on the panel's CURRENT position, not saved position
   const rect = panel.getBoundingClientRect();
+  
+  // Get viewport dimensions
   const viewportWidth = window.innerWidth;
   const viewportHeight = window.innerHeight;
   const expandedWidth = 320;  // Fixed width value
   const expandedHeight = 460; // Fixed height value
   
-  // Calculate available space in each direction
+  // Calculate available space in each direction from the panel's current position
   const spaceRight = viewportWidth - rect.right;
   const spaceLeft = rect.left;
   const spaceBottom = viewportHeight - rect.bottom;
+  const spaceTop = rect.top;
   
-  // Choose the best expansion direction
+  // Choose the best expansion direction based on available space
   let expandDirectionClass;
-  if (spaceRight >= expandedWidth) {
-    expandDirectionClass = spaceBottom >= expandedHeight ? 'expand-right-down' : 'expand-right-up';
-  } else if (spaceLeft >= expandedWidth) {
-    expandDirectionClass = spaceBottom >= expandedHeight ? 'expand-left-down' : 'expand-left-up';
-  } else {
-    expandDirectionClass = (spaceRight >= spaceLeft) ? 
-      (spaceBottom >= expandedHeight ? 'expand-right-down' : 'expand-right-up') : 
-      (spaceBottom >= expandedHeight ? 'expand-left-down' : 'expand-left-up');
+  
+  // First check if we have room to expand to the right
+  if (spaceRight >= expandedWidth - rect.width) {
+    // If we have room below, expand right-down
+    if (spaceBottom >= expandedHeight - rect.height) {
+      expandDirectionClass = 'expand-right-down';
+    }
+    // Otherwise if we have room above, expand right-up
+    else if (spaceTop >= expandedHeight - rect.height) {
+      expandDirectionClass = 'expand-right-up';
+    }
+    // If neither, still try right-down as default
+    else {
+      expandDirectionClass = 'expand-right-down';
+    }
   }
+  // If not enough room to the right, check if we have room to expand to the left
+  else if (spaceLeft >= expandedWidth - rect.width) {
+    // If we have room below, expand left-down
+    if (spaceBottom >= expandedHeight - rect.height) {
+      expandDirectionClass = 'expand-left-down';
+    }
+    // Otherwise if we have room above, expand left-up
+    else if (spaceTop >= expandedHeight - rect.height) {
+      expandDirectionClass = 'expand-left-up';
+    }
+    // If neither, try left-down as default
+    else {
+      expandDirectionClass = 'expand-left-down';
+    }
+  }
+  // If neither side has enough room, choose the side with more space
+  else {
+    if (spaceRight >= spaceLeft) {
+      expandDirectionClass = (spaceBottom >= spaceTop) ? 'expand-right-down' : 'expand-right-up';
+    } else {
+      expandDirectionClass = (spaceBottom >= spaceTop) ? 'expand-left-down' : 'expand-left-up';
+    }
+  }
+  
+  // Remove any existing expansion classes to ensure clean state
+  panel.classList.remove('expand-right-down', 'expand-left-down', 'expand-right-up', 'expand-left-up');
   
   // Apply expansion classes
   panel.classList.remove('shortcut-ext-collapsed');
   panel.classList.add('shortcut-ext-expanded', expandDirectionClass);
   
-  // Adjust panel position after expansion
+  // Ensure the panel is fully visible after expansion
   setTimeout(() => {
     ensurePanelInViewport(panel);
     loadShortcuts();
@@ -222,16 +235,20 @@ function ensurePanelInViewport(panel) {
   
   // Apply adjustments if needed
   if (leftAdjust !== 0 || topAdjust !== 0) {
-    // Get current position
-    const style = window.getComputedStyle(panel);
-    let left = rect.left;
-    let top = rect.top;
+    const currentLeft = parseInt(rect.left + leftAdjust);
+    const currentTop = parseInt(rect.top + topAdjust);
     
-    // Update position
-    panel.style.left = `${left + leftAdjust}px`;
-    panel.style.top = `${top + topAdjust}px`;
+    // Update position with absolute values
+    panel.style.left = `${currentLeft}px`;
+    panel.style.top = `${currentTop}px`;
     panel.style.right = 'auto';
     panel.style.bottom = 'auto';
+    
+    // Update the data attributes to match the new position
+    panel.setAttribute('data-original-left', `${currentLeft}px`);
+    panel.setAttribute('data-original-top', `${currentTop}px`);
+    panel.removeAttribute('data-original-right');
+    panel.removeAttribute('data-original-bottom');
     
     // Save new position
     savePosition(panel);
@@ -243,12 +260,43 @@ function ensurePanelInViewport(panel) {
  * @param {HTMLElement} panel - Panel element
  */
 function savePosition(panel) {
-  const position = {
-    top: panel.style.top,
-    left: panel.style.left,
-    right: panel.style.right,
-    bottom: panel.style.bottom
-  };
+  // Get computed position to ensure we have the most accurate values
+  const style = window.getComputedStyle(panel);
+  const rect = panel.getBoundingClientRect();
+  
+  // Determine which position values to use
+  let position;
+  
+  // If left/top are defined and not 'auto', use those (prioritize)
+  if (style.left !== 'auto' && style.top !== 'auto') {
+    position = {
+      left: style.left,
+      top: style.top,
+      right: 'auto',
+      bottom: 'auto'
+    };
+    
+    // Update data attributes to stay in sync
+    panel.setAttribute('data-original-left', style.left);
+    panel.setAttribute('data-original-top', style.top);
+    panel.removeAttribute('data-original-right');
+    panel.removeAttribute('data-original-bottom');
+  } 
+  // Otherwise use right/bottom
+  else {
+    position = {
+      right: style.right,
+      bottom: style.bottom,
+      left: 'auto',
+      top: 'auto'
+    };
+    
+    // Update data attributes to stay in sync
+    panel.setAttribute('data-original-right', style.right);
+    panel.setAttribute('data-original-bottom', style.bottom);
+    panel.removeAttribute('data-original-left');
+    panel.removeAttribute('data-original-top');
+  }
   
   chrome.storage.sync.set({ 'panelPosition': position });
 }
@@ -329,13 +377,16 @@ function makeElementDraggable(element, handle) {
     document.removeEventListener('mouseup', dragEnd);
     
     if (hasMoved) {
-      // Update data attributes
+      // Always use left/top for positioning after drag
+      const rect = element.getBoundingClientRect();
+      
+      // Update data attributes with current position
       element.setAttribute('data-original-left', element.style.left);
       element.setAttribute('data-original-top', element.style.top);
       element.removeAttribute('data-original-right');
       element.removeAttribute('data-original-bottom');
       
-      // Save position
+      // Save the new position to storage
       savePosition(element);
       
       // Prevent accidental click after drag
@@ -550,6 +601,27 @@ function createShortcutPanel() {
   // Add to page
   document.body.appendChild(panel);
   
+  // Set position from storage
+  chrome.storage.sync.get(['panelPosition'], (result) => {
+    const position = result.panelPosition || { right: '20px', bottom: '20px' };
+    
+    // Reset all position properties first
+    panel.style.left = 'auto';
+    panel.style.top = 'auto';
+    panel.style.right = 'auto';
+    panel.style.bottom = 'auto';
+    panel.style.margin = '0';  // Ensure no margins are applied
+    
+    // Apply stored position - prioritize left/top positioning
+    if (position.left && position.left !== 'auto' && position.top && position.top !== 'auto') {
+      panel.style.left = position.left;
+      panel.style.top = position.top;
+    } else {
+      panel.style.right = position.right || '20px';
+      panel.style.bottom = position.bottom || '20px';
+    }
+  });
+  
   // Add event listeners
   toggleBtn.addEventListener('click', togglePanel);
   
@@ -588,14 +660,25 @@ function createShortcutPanel() {
   // Set position from storage
   chrome.storage.sync.get(['panelPosition'], (result) => {
     const position = result.panelPosition || { right: '20px', bottom: '20px' };
-    Object.keys(position).forEach(key => {
-      if (position[key] !== 'auto') {
-        panel.style[key] = position[key];
-        if (['top', 'bottom', 'left', 'right'].includes(key)) {
-          panel.setAttribute('data-original-' + key, position[key]);
-        }
-      }
-    });
+    
+    // Reset all position properties first
+    panel.style.left = 'auto';
+    panel.style.top = 'auto';
+    panel.style.right = 'auto';
+    panel.style.bottom = 'auto';
+    
+    // Apply stored position
+    if (position.left !== 'auto' && position.top !== 'auto') {
+      panel.style.left = position.left;
+      panel.style.top = position.top;
+      panel.setAttribute('data-original-left', position.left);
+      panel.setAttribute('data-original-top', position.top);
+    } else {
+      panel.style.right = position.right || '20px';
+      panel.style.bottom = position.bottom || '20px';
+      panel.setAttribute('data-original-right', position.right || '20px');
+      panel.setAttribute('data-original-bottom', position.bottom || '20px');
+    }
   });
   
   // Make panel draggable
