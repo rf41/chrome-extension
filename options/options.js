@@ -181,24 +181,14 @@ if (shortcutForm) {
 
     const addBtn = document.getElementById('addBtn');
     const isUpdate = addBtn && addBtn.classList.contains('update-btn');
-    const editIndex = isUpdate && addBtn ? parseInt(addBtn.getAttribute('data-edit-index')) : -1;
+    const editIndex = isUpdate ? parseInt(addBtn.getAttribute('data-edit-index')) : -1;
     
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       url = 'https://' + url;
     }
 
-    chrome.runtime.sendMessage({
-      action: "validateUrl", 
-      url: url
-    }, (response) => {
-      if (!response.isValid) {
-        customStatus.textContent = response.reason;
-        customStatus.style.color = "red";
-        return;
-      }
-
-      processFormSubmission(title, url, commandId, isUpdate, editIndex);
-    });
+    // Directly process form submission without unnecessary runtime message
+    processFormSubmission(title, url, commandId, isUpdate, editIndex);
   });
 }
 
@@ -209,6 +199,12 @@ function getShortcutLimit() {
 function processFormSubmission(title, url, commandId, isUpdate, editIndex) {
   if (!title) {
     customStatus.textContent = "Please enter a title for your shortcut";
+    customStatus.style.color = "red";
+    return;
+  }
+
+  if (!url) {
+    customStatus.textContent = "Please enter a URL for your shortcut";
     customStatus.style.color = "red";
     return;
   }
@@ -236,16 +232,20 @@ function processFormSubmission(title, url, commandId, isUpdate, editIndex) {
   let domains = [];
 
   if (domainTargeting) {
+    // Ensure the domain is set correctly
     domainTargeting.value = currentDomain;
     domains = [currentDomain];
   }
 
   chrome.storage.sync.get(['customShortcuts'], (result) => {
-    const shortcuts = result.customShortcuts || [];
+    let shortcuts = result.customShortcuts || [];
+    
+    // Count shortcuts for the current domain, excluding the one being edited
     const domainShortcutsCount = shortcuts.filter((s, idx) => {
       if (isUpdate && idx === editIndex) return false;
       return s.domains && s.domains.includes(currentDomain);
     }).length;
+    
     const shortcutLimit = getShortcutLimit();
     
     if (domainShortcutsCount >= shortcutLimit) {
@@ -267,11 +267,23 @@ function processFormSubmission(title, url, commandId, isUpdate, editIndex) {
       return;
     }
 
-    if (isUpdate && editIndex >= 0 && editIndex < shortcuts.length) {
+    if (isUpdate && !isNaN(editIndex) && editIndex >= 0 && editIndex < shortcuts.length) {
+      // Validate commandId - ensure it's not already used by another shortcut
+      if (commandId && commandId !== shortcuts[editIndex].command) {
+        const commandExists = shortcuts.some((s, i) => i !== editIndex && s.command === commandId);
+        if (commandExists) {
+          customStatus.textContent = `Command ID "${commandId}" already exists. Please choose a different one.`; 
+          customStatus.style.color = "red";
+          return;
+        }
+      }
+
+      // Update the existing shortcut
       shortcuts[editIndex].command = commandId;
       shortcuts[editIndex].title = title;
       shortcuts[editIndex].url = url;
-      shortcuts[editIndex].domains = domains; 
+      shortcuts[editIndex].domains = domains;
+
       chrome.storage.sync.set({ customShortcuts: shortcuts }, () => {
         resetShortcutForm();
         customStatus.innerHTML = `
@@ -285,11 +297,14 @@ function processFormSubmission(title, url, commandId, isUpdate, editIndex) {
         }, 2000);
       });
     } else {
+      // Check if command ID already exists when adding a new shortcut
       if (commandId && commandId !== '' && shortcuts.some(s => s.command === commandId)) {
         customStatus.textContent = `Command ID "${commandId}" already exists. Please choose a different one.`; 
         customStatus.style.color = "red";
         return;
       }
+      
+      // Add a new shortcut
       shortcuts.push({
         command: commandId || "", 
         title: title,
@@ -729,10 +744,12 @@ function editShortcut(index) {
       commandIdSelect.innerHTML = '';
       commandIdSelect.appendChild(new Option('None (Optional)', ''));
 
+      // Store all used command IDs except the one being edited
       const usedCommandIds = shortcuts
         .filter((s, i) => i !== index && s.command)
         .map(s => s.command);
 
+      // Add available command options including the one currently assigned to this shortcut
       AVAILABLE_COMMANDS.forEach(cmd => {
         if (!usedCommandIds.includes(cmd) || shortcut.command === cmd) {
           const option = new Option(cmd, cmd);
@@ -779,17 +796,15 @@ function editShortcut(index) {
 function resetShortcutForm() {
   if (titleInput) titleInput.value = '';
   if (shortcutUrlInput) shortcutUrlInput.value = '';
+  
   const domainTargetingInput = document.getElementById('domainTargeting');
   if (domainTargetingInput) {
     domainTargetingInput.value = '';
     domainTargetingInput.setAttribute('readonly', 'readonly');
   }
 
-  updateCommandIdDropdown();
-  const commandIdSelect = document.getElementById('commandIdSelect');
-  if (commandIdSelect) {
-    commandIdSelect.disabled = false;
-  }
+  // Properly refresh command ID dropdown
+  prepareCommandDropdown();
   
   const addBtn = document.getElementById('addBtn');
   if (addBtn) {
@@ -799,7 +814,7 @@ function resetShortcutForm() {
   }
 
   const cancelBtn = document.getElementById('cancelEditBtn');
-  if (cancelBtn) {
+  if (cancelBtn && cancelBtn.parentNode) {
     cancelBtn.parentNode.removeChild(cancelBtn);
   }
 }
