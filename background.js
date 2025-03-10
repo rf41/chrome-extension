@@ -423,7 +423,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
         
         const url = message.url;
-        const valid = validateUrl(url);
+        const valid = isValidUrl(url);  // Changed from validateUrl to isValidUrl
         const reason = valid ? "" : "URL contains suspicious patterns or is improperly formatted";
         
         sendResponse({

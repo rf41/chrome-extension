@@ -438,10 +438,29 @@ function loadCustomShortcuts(sortColumn = 'domain', sortDirection = 'asc') {
         const row = document.createElement('tr');
         const originalIndex = shortcut._originalIndex;
         
+        // Function to create truncated cell content with title attribute
+        const truncateText = (text, maxLength = 50) => {
+          if (!text) return '';
+          const displayText = text.length > maxLength ? 
+            text.substring(0, maxLength) + '...' : 
+            text;
+          return `<div class="truncate-cell" title="${escapeHtml(text)}">${escapeHtml(displayText)}</div>`;
+        };
+        
+        // Escape HTML to prevent XSS when using title attribute
+        const escapeHtml = (unsafe) => {
+          return unsafe
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+        };
+        
         row.innerHTML = `
           <td>${shortcut.command || '<span class="optional-badge">none</span>'}</td>
-          <td>${shortcut.title}</td>
-          <td>${shortcut.url}</td>
+          <td>${truncateText(shortcut.title, 30)}</td>
+          <td>${truncateText(shortcut.url, 40)}</td>
           <td data-command-id="${shortcut.command}" class="shortcut-cell">
             ${shortcut.command ? 
               '<span class="shortcut-binding">Set in chrome://extensions/shortcuts</span>' : 
@@ -520,15 +539,22 @@ function updateShortcutDisplayTable() {
         if (shortcutMap[command.name]) {
           const shortcutElem = document.querySelector(`[data-command-id="${command.name}"] .shortcut-binding`);
           if (shortcutElem) {
-            shortcutElem.textContent = "Set here";
-            shortcutElem.style.color = command.shortcut ? 'green' : 'blue';
-            shortcutElem.style.cursor = 'pointer';
-            shortcutElem.style.textDecoration = 'underline';
-            const newElem = shortcutElem.cloneNode(true);
-            shortcutElem.parentNode.replaceChild(newElem, shortcutElem);
-            newElem.addEventListener('click', function() {
+            // Display the actual shortcut if set, otherwise show "Set here"
+            if (command.shortcut) {
+              shortcutElem.textContent = command.shortcut;
+              shortcutElem.style.color = 'blue';
+            } else {
+              shortcutElem.textContent = "Set here";
+              shortcutElem.style.color = 'red';
+              shortcutElem.style.cursor = 'pointer';
+              shortcutElem.style.textDecoration = 'underline';
+              const newElem = shortcutElem.cloneNode(true);
+              shortcutElem.parentNode.replaceChild(newElem, shortcutElem);
+              newElem.addEventListener('click', function() {
               chrome.tabs.create({url: 'chrome://extensions/shortcuts'});
-            });
+            })
+            }
+            ;
           }
         }
       });
