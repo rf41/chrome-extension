@@ -1082,8 +1082,7 @@ function showPremiumUpgradeModal() {
       </div>
       
       <div class="modal-buttons">
-        <a href="https://ridwancard.my.id/checkout/?add-to-cart=62" 
-           target="_blank" id="buyPremium" class="primary-btn">Purchase Premium</a>
+        <a href="#" id="buyPremium" class="primary-btn">Purchase Premium</a>
         <button id="activateLicense" class="primary-btn">Already purchased? Activate License</button>
         <button id="closeModal" class="cancel-btn">Maybe Later</button>
       </div>
@@ -1102,6 +1101,20 @@ function showPremiumUpgradeModal() {
   `;
 
   document.body.appendChild(modal);
+
+  document.getElementById('buyPremium').addEventListener('click', (e) => {
+    e.preventDefault();
+    const width = 800;
+    const height = 700;
+    const left = (screen.width - width) / 2;
+    const top = (screen.height - height) / 2;
+    
+    window.open(
+      'https://ridwancard.my.id/buy-smart-shortcut-panel',
+      'PremiumPurchase',
+      `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes`
+    );
+  });
 
   document.getElementById('activateLicense').addEventListener('click', () => {
     document.getElementById('licenseActivationForm').style.display = 'block';
