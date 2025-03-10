@@ -991,14 +991,19 @@ function enhanceDomainField() {
 
 function checkPremiumStatus() {
   return new Promise((resolve) => {
-    chrome.storage.sync.get(['premiumStatus'], (result) => {
-      if (result.premiumStatus && result.premiumStatus.active === true) {
-        if (result.premiumStatus.expiresOn) {
-          const now = new Date();
-          const expiryDate = new Date(result.premiumStatus.expiresOn);
-          isPremiumUser = now <= expiryDate;
+    chrome.runtime.sendMessage({action: "getLicenseInfo"}, (response) => {
+      if (response && response.success && response.data) {
+        const premiumData = response.data;
+        if (premiumData.active === true) {
+          if (premiumData.expiresOn) {
+            const now = new Date();
+            const expiryDate = new Date(premiumData.expiresOn);
+            isPremiumUser = now <= expiryDate;
+          } else {
+            isPremiumUser = true;
+          }
         } else {
-          isPremiumUser = true;
+          isPremiumUser = false;
         }
       } else {
         isPremiumUser = false;
@@ -1173,36 +1178,32 @@ function verifyLicenseKey(licenseKey) {
   const licenseMessage = document.getElementById('licenseMessage');
   licenseMessage.innerHTML = '<p style="color: blue;">Verifying license...</p>';
   
-  makeLicenseApiRequest(LICENSE_API_CONFIG.endpoints.activate, licenseKey)
-    .then(data => {
+  chrome.runtime.sendMessage(
+    {action: "verifyLicenseKey", licenseKey: licenseKey},
+    (response) => {
+      if (chrome.runtime.lastError) {
+        licenseMessage.innerHTML = `<p style="color: red;">Error: ${chrome.runtime.lastError.message}</p>`;
+        return;
+      }
+      
+      if (!response || !response.success) {
+        licenseMessage.innerHTML = `<p style="color: red;">Error: ${response?.error || 'Unknown error'}</p>`;
+        return;
+      }
+      
+      const data = response.data;
+      
       if (data.success === true) {
         licenseMessage.innerHTML = '<p style="color: green;">License verified and activated successfully! Refreshing page...</p>';
-        
-        chrome.storage.sync.set({
-          'premiumStatus': {
-            active: true,
-            activatedOn: new Date().toISOString(),
-            licenseKey: licenseKey,
-            expiresOn: data.data?.expiresAt || null,
-            timesActivated: data.data?.timesActivated || 0,
-            timesActivatedMax: data.data?.timesActivatedMax || 1,
-            remainingActivations: data.data?.remainingActivations || 1
-          }
-        }, () => {
-          setTimeout(() => {
-            window.location.reload();
-          }, 1000);
-        });
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
       } else {
         licenseMessage.innerHTML = 
           `<p style="color: red;">Invalid license key: ${data.message || 'Please check and try again'}</p>`;
       }
-    })
-    .catch(error => {
-      console.error('License verification error:', error);
-      licenseMessage.innerHTML = 
-        '<p style="color: red;">Error connecting to license server. Please try again later.</p>';
-    });
+    }
+  );
 }
 
 function refreshLicense() {
@@ -1217,63 +1218,44 @@ function refreshLicense() {
     
     customStatus.innerHTML = `<div style="color: blue;">Refreshing license status...</div>`;
     
-    makeLicenseApiRequest(LICENSE_API_CONFIG.endpoints.validate, licenseKey)
-      .then(data => {
-        if (data.success === true) {
-          chrome.storage.sync.set({
-            'premiumStatus': {
-              active: true,
-              activatedOn: premiumData.activatedOn || new Date().toISOString(),
-              licenseKey: licenseKey,
-              expiresOn: data.data?.expiresAt || null,
-              lastVerified: new Date().toISOString(),
-              timesActivated: data.data?.timesActivated || 1,
-              timesActivatedMax: data.data?.timesActivatedMax || null
-            }
-          }, () => {
-            updateLicenseDetails();
-            displayPremiumStatus();
-            
-            customStatus.innerHTML = `<div style="color: green;">License refreshed successfully!</div>`;
-            setTimeout(() => {
-              customStatus.textContent = "";
-            }, 4000);
-          });
-        } else {
-          chrome.storage.sync.set({
-            'premiumStatus': {
-              active: false,
-              licenseKey: licenseKey,
-              deactivatedOn: new Date().toISOString(),
-              reason: data.message || 'License is no longer valid'
-            }
-          }, () => {
-            isPremiumUser = false;
-            updateLicenseDetails();
-            displayPremiumStatus();
-            loadCustomShortcuts();
-            
-            customStatus.innerHTML = `<div style="color: red;">License is no longer valid: ${data.message || 'Please renew your license.'}</div>`;
-            setTimeout(() => {
-              customStatus.textContent = "";
-            }, 5000);
-          });
+    chrome.runtime.sendMessage(
+      {action: "refreshLicense", licenseKey: licenseKey},
+      (response) => {
+        if (chrome.runtime.lastError || !response || !response.success) {
+          const errorMsg = chrome.runtime.lastError?.message || response?.error || 'Unknown error';
+          console.error('License refresh error:', errorMsg);
+          customStatus.innerHTML = '<div style="color: red;">Error connecting to license server. Please try again later.</div>';
+          setTimeout(() => {
+            customStatus.textContent = "";
+          }, 4000);
+          return;
         }
-      })
-      .catch(error => {
-        console.error('License refresh error:', error);
-        customStatus.innerHTML = '<div style="color: red;">Error connecting to license server. Please try again later.</div>';
-        setTimeout(() => {
-          customStatus.textContent = "";
-        }, 4000);
-      });
+        
+        const { apiResponse, updatedStatus } = response.data;
+        
+        if (apiResponse && apiResponse.success === true) {
+          isPremiumUser = true;
+          updateLicenseDetails();
+          displayPremiumStatus();
+          
+          customStatus.innerHTML = `<div style="color: green;">License refreshed successfully!</div>`;
+          setTimeout(() => {
+            customStatus.textContent = "";
+          }, 4000);
+        } else {
+          isPremiumUser = false;
+          updateLicenseDetails();
+          displayPremiumStatus();
+          loadCustomShortcuts();
+          
+          customStatus.innerHTML = `<div style="color: red;">License is no longer valid: ${apiResponse?.message || 'Please renew your license.'}</div>`;
+          setTimeout(() => {
+            customStatus.textContent = "";
+          }, 5000);
+        }
+      }
+    );
   });
-}
-
-function maskLicenseKey(key) {
-  if (!key || key === 'Unknown') return 'Unknown';
-  if (key.length <= 4) return key;
-  return '••••••••' + key.slice(-4);
 }
 
 function deactivateLicense() {
@@ -1292,22 +1274,39 @@ function deactivateLicense() {
       return;
     }
     
-    makeLicenseApiRequest(LICENSE_API_CONFIG.endpoints.deactivate, licenseKey)
-      .then(data => {
-        const message = data.success === true 
+    chrome.runtime.sendMessage(
+      {action: "deactivateLicense", licenseKey: licenseKey},
+      (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('License deactivation error:', chrome.runtime.lastError);
+          removeLicenseLocally('License deactivated locally. You\'re now using the free version.', 'orange');
+          return;
+        }
+        
+        if (!response || !response.success) {
+          console.error('License deactivation error:', response?.error);
+          removeLicenseLocally('License deactivated locally. You\'re now using the free version.', 'orange');
+          return;
+        }
+        
+        const { apiResponse, localDeactivation } = response.data;
+        
+        const message = (apiResponse && apiResponse.success === true)
           ? 'License deactivated successfully. You\'re now using the free version.'
           : 'License deactivated locally. You\'re now using the free version.';
         
-        if (!data.success) {
-          console.warn('Remote deactivation failed:', data.message);
+        if (apiResponse && !apiResponse.success) {
+          console.warn('Remote deactivation failed:', apiResponse.message);
         }
         
-        removeLicenseLocally(message, 'orange');
-      })
-      .catch(error => {
-        console.error('License deactivation error:', error);
-        removeLicenseLocally('License deactivated locally. You\'re now using the free version.', 'orange');
-      });
+        if (localDeactivation) {
+          showStatusMessage(message, 'orange');
+          window.location.reload();
+        } else {
+          removeLicenseLocally(message, 'orange');
+        }
+      }
+    );
   });
   
   function showStatusMessage(message, color) {
@@ -1320,6 +1319,91 @@ function deactivateLicense() {
       window.location.reload();
     });
   }
+}
+
+function maskLicenseKey(key) {
+  if (!key || key === 'Unknown') return 'Unknown';
+  if (key.length <= 4) return key;
+  return '••••••••' + key.slice(-4);
+}
+
+function updateLicenseDetails() {
+  const licenseDetails = document.getElementById('licenseDetails');
+  const licenseActionButtons = document.getElementById('licenseActionButtons');
+  
+  if (!licenseDetails || !licenseActionButtons) return;
+  
+  chrome.runtime.sendMessage({action: "getLicenseInfo"}, (response) => {
+    if (!response || !response.success) {
+      // Handle error or no license info
+      licenseDetails.innerHTML = `<div class="license-inactive">
+        <p>No active license found or error retrieving license information.</p>
+        <button id="addLicenseBtn" class="primary-btn">Add License Key</button>
+      </div>`;
+      
+      licenseActionButtons.style.display = 'none';
+      
+      const addLicenseBtn = document.getElementById('addLicenseBtn');
+      if (addLicenseBtn) {
+        addLicenseBtn.addEventListener('click', showPremiumUpgradeModal);
+      }
+      return;
+    }
+    
+    const premiumData = response.data || {};
+    
+    if (premiumData.active) {
+      licenseActionButtons.style.display = 'block';
+      
+      const activatedDate = premiumData.activatedOn ? 
+        new Date(premiumData.activatedOn).toLocaleDateString() : 'Unknown';
+      
+      const lastVerifiedInfo = premiumData.lastVerified ? 
+        `<p><strong>Last Verified:</strong> ${new Date(premiumData.lastVerified).toLocaleString()}</p>` : '';
+      
+      const expiryInfo = premiumData.expiresOn ? 
+        `<p><strong>Expires On:</strong> ${new Date(premiumData.expiresOn).toLocaleDateString()}</p>` : 
+        '<p><strong>License Type:</strong> Lifetime (no expiration)</p>';
+      
+      const activationInfo = premiumData.timesActivatedMax ? 
+        `<p><strong>Activations:</strong> ${premiumData.timesActivated || 1} / ${premiumData.timesActivatedMax}</p>` : '';
+      
+      licenseDetails.innerHTML = `
+        <div class="license-active">
+          <p><strong>Status:</strong> <span style="color: green;">Active</span></p>
+          <p><strong>License Key:</strong> ${maskLicenseKey(premiumData.licenseKey || 'Unknown')}</p>
+          <p><strong>Activated On:</strong> ${activatedDate}</p>
+          ${expiryInfo}
+          ${activationInfo}
+          ${lastVerifiedInfo}
+        </div>
+      `;
+      
+      const licenseSection = document.getElementById('licenseManagementSection');
+      if (licenseSection) {
+        licenseSection.style.display = 'block';
+      }
+    } else {
+      licenseActionButtons.style.display = 'none';
+      
+      const licenseSection = document.getElementById('licenseManagementSection');
+      if (licenseSection) {
+        licenseSection.style.display = 'none';
+      }
+      
+      licenseDetails.innerHTML = `
+        <div class="license-inactive">
+          <p>No active license found.</p>
+          <button id="addLicenseBtn" class="primary-btn">Add License Key</button>
+        </div>
+      `;
+      
+      const addLicenseBtn = document.getElementById('addLicenseBtn');
+      if (addLicenseBtn) {
+        addLicenseBtn.addEventListener('click', showPremiumUpgradeModal);
+      }
+    }
+  });
 }
 
 document.getElementById('openShortcutsPage').addEventListener('click', () => {
@@ -1537,69 +1621,6 @@ function addLicenseManagementSection() {
     
     updateLicenseDetails();
   }
-}
-
-function updateLicenseDetails() {
-  const licenseDetails = document.getElementById('licenseDetails');
-  const licenseActionButtons = document.getElementById('licenseActionButtons');
-  
-  if (!licenseDetails || !licenseActionButtons) return;
-  
-  chrome.storage.sync.get(['premiumStatus'], (result) => {
-    const premiumData = result.premiumStatus || {};
-    
-    if (premiumData.active) {
-      licenseActionButtons.style.display = 'block';
-      
-      const activatedDate = premiumData.activatedOn ? 
-        new Date(premiumData.activatedOn).toLocaleDateString() : 'Unknown';
-      
-      const lastVerifiedInfo = premiumData.lastVerified ? 
-        `<p><strong>Last Verified:</strong> ${new Date(premiumData.lastVerified).toLocaleString()}</p>` : '';
-      
-      const expiryInfo = premiumData.expiresOn ? 
-        `<p><strong>Expires On:</strong> ${new Date(premiumData.expiresOn).toLocaleDateString()}</p>` : 
-        '<p><strong>License Type:</strong> Lifetime (no expiration)</p>';
-      
-      const activationInfo = premiumData.timesActivatedMax ? 
-        `<p><strong>Activations:</strong> ${premiumData.timesActivated || 1} / ${premiumData.timesActivatedMax}</p>` : '';
-      
-      licenseDetails.innerHTML = `
-        <div class="license-active">
-          <p><strong>Status:</strong> <span style="color: green;">Active</span></p>
-          <p><strong>License Key:</strong> ${maskLicenseKey(premiumData.licenseKey || 'Unknown')}</p>
-          <p><strong>Activated On:</strong> ${activatedDate}</p>
-          ${expiryInfo}
-          ${activationInfo}
-          ${lastVerifiedInfo}
-        </div>
-      `;
-      
-      const licenseSection = document.getElementById('licenseManagementSection');
-      if (licenseSection) {
-        licenseSection.style.display = 'block';
-      }
-    } else {
-      licenseActionButtons.style.display = 'none';
-      
-      const licenseSection = document.getElementById('licenseManagementSection');
-      if (licenseSection) {
-        licenseSection.style.display = 'none';
-      }
-      
-      licenseDetails.innerHTML = `
-        <div class="license-inactive">
-          <p>No active license found.</p>
-          <button id="addLicenseBtn" class="primary-btn">Add License Key</button>
-        </div>
-      `;
-      
-      const addLicenseBtn = document.getElementById('addLicenseBtn');
-      if (addLicenseBtn) {
-        addLicenseBtn.addEventListener('click', showPremiumUpgradeModal);
-      }
-    }
-  });
 }
 
 document.addEventListener('DOMContentLoaded', function() {

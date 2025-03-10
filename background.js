@@ -153,64 +153,207 @@ function getAuthorizationHeader() {
   return btoa(`${API_CREDENTIALS.consumerKey}:${API_CREDENTIALS.consumerSecret}`);
 }
 
-async function handleLicenseApiRequest(message, sendResponse) {
+// Centralized License API Configuration and Functions
+const LICENSE_API_CONFIG = {
+  baseUrl: 'https://ridwancard.my.id',
+  endpoints: {
+    activate: '/wp-json/lmfwc/v2/licenses/activate/',
+    validate: '/wp-json/lmfwc/v2/licenses/validate/',
+    deactivate: '/wp-json/lmfwc/v2/licenses/deactivate/'
+  }
+};
+
+/**
+ * Make a request to the license API
+ * @param {string} endpoint - The API endpoint
+ * @param {string} licenseKey - The license key
+ * @returns {Promise<Object>} The API response
+ */
+async function makeLicenseApiRequest(endpoint, licenseKey) {
+  const url = `${LICENSE_API_CONFIG.baseUrl}${endpoint}${licenseKey}`;
+  
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Basic ${getAuthorizationHeader()}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Server responded with status: ${response.status}`);
+  }
+
+  const text = await response.text();
+  let data;
+
   try {
-    const { endpoint, licenseKey } = message;
-    const url = `https://ridwancard.my.id${endpoint}${licenseKey}`;
-    
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Basic ${getAuthorizationHeader()}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Server responded with status: ${response.status}`);
-    }
-    
-    const text = await response.text();
-    let data;
-    
-    try {
-      if (text.includes('<b>Warning</b>') || text.includes('<br />')) {
-        const jsonMatch = text.match(/(\{.*\})/);
-        if (jsonMatch && jsonMatch[1]) {
-          data = JSON.parse(jsonMatch[1]);
-        } else {
-          throw new Error('Server returned HTML error with no valid JSON');
-        }
+    if (text.includes('<b>Warning</b>') || text.includes('<br />')) {
+      const jsonMatch = text.match(/(\{.*\})/);
+      if (jsonMatch && jsonMatch[1]) {
+        data = JSON.parse(jsonMatch[1]);
       } else {
-        data = JSON.parse(text);
+        throw new Error('Server returned HTML error with no valid JSON');
       }
-    } catch (e) {
-      console.error('Failed to parse response:', e);
-      throw new Error('Failed to parse server response');
+    } else {
+      data = JSON.parse(text);
     }
-    
-    sendResponse({ data });
+  } catch (e) {
+    console.error('Failed to parse response:', e);
+    throw new Error('Failed to parse server response');
+  }
+
+  return data;
+}
+
+/**
+ * Check if a license key is valid
+ * @param {string} licenseKey - The license key to verify
+ * @returns {Promise<Object>} The API response
+ */
+async function verifyLicenseKey(licenseKey) {
+  try {
+    const data = await makeLicenseApiRequest(LICENSE_API_CONFIG.endpoints.activate, licenseKey);
+    if (data && data.success === true) {
+      // Store license data in sync storage
+      await new Promise((resolve, reject) => {
+        chrome.storage.sync.set({
+          'premiumStatus': {
+            active: true,
+            activatedOn: new Date().toISOString(),
+            licenseKey: licenseKey,
+            expiresOn: data.data?.expiresAt || null,
+            timesActivated: data.data?.timesActivated || 0,
+            timesActivatedMax: data.data?.timesActivatedMax || 1,
+            remainingActivations: data.data?.remainingActivations || 1,
+            lastVerified: new Date().toISOString()
+          }
+        }, () => {
+          if (chrome.runtime.lastError) {
+            reject(chrome.runtime.lastError);
+          } else {
+            resolve();
+          }
+        });
+      });
+    }
+    return data;
   } catch (error) {
-    console.error('License API request failed:', error);
-    sendResponse({ error: error.message });
+    console.error('License verification error:', error);
+    throw error;
   }
 }
 
-function validateUrl(string) {
-  if (!string || string.trim() === '') return false;
-  
-  let url = string.trim();
-  if (!url.startsWith('http://') && !url.startsWith('https://')) {
-    url = 'https://' + url;
+/**
+ * Refresh a license with the API
+ * @param {string} licenseKey - The license key to refresh
+ * @returns {Promise<Object>} The API response with updated storage status
+ */
+async function refreshLicense(licenseKey) {
+  try {
+    const data = await makeLicenseApiRequest(LICENSE_API_CONFIG.endpoints.validate, licenseKey);
+    
+    // Get current premium status
+    const { premiumStatus } = await new Promise(resolve => {
+      chrome.storage.sync.get(['premiumStatus'], resolve);
+    });
+    
+    // Update premium status based on API response
+    if (data && data.success === true) {
+      await new Promise((resolve, reject) => {
+        chrome.storage.sync.set({
+          'premiumStatus': {
+            active: true,
+            activatedOn: premiumStatus?.activatedOn || new Date().toISOString(),
+            licenseKey: licenseKey,
+            expiresOn: data.data?.expiresAt || null,
+            lastVerified: new Date().toISOString(),
+            timesActivated: data.data?.timesActivated || 1,
+            timesActivatedMax: data.data?.timesActivatedMax || null
+          }
+        }, () => {
+          if (chrome.runtime.lastError) {
+            reject(chrome.runtime.lastError);
+          } else {
+            resolve();
+          }
+        });
+      });
+    } else {
+      // License is invalid, update storage accordingly
+      await new Promise((resolve, reject) => {
+        chrome.storage.sync.set({
+          'premiumStatus': {
+            active: false,
+            licenseKey: licenseKey,
+            deactivatedOn: new Date().toISOString(),
+            reason: data.message || 'License is no longer valid'
+          }
+        }, () => {
+          if (chrome.runtime.lastError) {
+            reject(chrome.runtime.lastError);
+          } else {
+            resolve();
+          }
+        });
+      });
+    }
+    
+    return {
+      apiResponse: data,
+      updatedStatus: await new Promise(resolve => {
+        chrome.storage.sync.get(['premiumStatus'], resolve);
+      })
+    };
+  } catch (error) {
+    console.error('License refresh error:', error);
+    throw error;
   }
-  
-  try { 
-    const urlObj = new URL(url);
-    return urlObj.hostname && urlObj.hostname.includes('.') && 
-           /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9](\.[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9])+$/.test(urlObj.hostname);
-  } catch (_) {
-    return false;
+}
+
+/**
+ * Deactivate a license with the API
+ * @param {string} licenseKey - The license key to deactivate
+ * @returns {Promise<Object>} The API response with local deactivation status
+ */
+async function deactivateLicense(licenseKey) {
+  try {
+    const data = await makeLicenseApiRequest(LICENSE_API_CONFIG.endpoints.deactivate, licenseKey);
+    
+    // Remove premium status from storage regardless of API response
+    await new Promise((resolve) => {
+      chrome.storage.sync.remove(['premiumStatus'], resolve);
+    });
+    
+    return {
+      apiResponse: data,
+      localDeactivation: true
+    };
+  } catch (error) {
+    console.error('License deactivation error:', error);
+    
+    // Even if API fails, remove premium status locally
+    await new Promise((resolve) => {
+      chrome.storage.sync.remove(['premiumStatus'], resolve);
+    });
+    
+    return {
+      apiResponse: { success: false, message: error.message },
+      localDeactivation: true
+    };
   }
+}
+
+/**
+ * Get current license information from storage
+ * @returns {Promise<Object>} The current license information
+ */
+async function getLicenseInfo() {
+  return new Promise((resolve) => {
+    chrome.storage.sync.get(['premiumStatus'], (result) => {
+      resolve(result.premiumStatus || { active: false });
+    });
+  });
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -283,12 +426,37 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       handleLicenseApiRequest(message, sendResponse);
       return true; 
       
+    case "verifyLicenseKey":
+      verifyLicenseKey(message.licenseKey)
+        .then(data => sendResponse({ success: true, data }))
+        .catch(error => sendResponse({ success: false, error: error.message }));
+      return true;
+
+    case "refreshLicense":
+      refreshLicense(message.licenseKey)
+        .then(data => sendResponse({ success: true, data }))
+        .catch(error => sendResponse({ success: false, error: error.message }));
+      return true;
+
+    case "deactivateLicense":
+      deactivateLicense(message.licenseKey)
+        .then(data => sendResponse({ success: true, data }))
+        .catch(error => sendResponse({ success: false, error: error.message }));
+      return true;
+
+    case "getLicenseInfo":
+      getLicenseInfo()
+        .then(data => sendResponse({ success: true, data }))
+        .catch(error => sendResponse({ success: false, error: error.message }));
+      return true;
+
     default:
       console.warn("Unknown message action received:", message.action);
       sendResponse({
         success: false, 
         error: "Unknown action type",
-        supportedActions: ["getShortcuts", "openOptions", "validateUrl", "licenseApiRequest"]
+        supportedActions: ["getShortcuts", "openOptions", "validateUrl", "licenseApiRequest", 
+                          "verifyLicenseKey", "refreshLicense", "deactivateLicense", "getLicenseInfo"]
       });
       return true;
   }
