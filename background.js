@@ -214,8 +214,10 @@ async function makeLicenseApiRequest(endpoint, licenseKey) {
 async function verifyLicenseKey(licenseKey) {
   try {
     const data = await makeLicenseApiRequest(LICENSE_API_CONFIG.endpoints.activate, licenseKey);
-    if (data && data.success === true) {
-      // Store license data in sync storage
+    
+    // The API returns success:true even for error cases, so we need to check for errors in data
+    if (data && data.success === true && !data.data?.errors) {
+      // Only consider it a successful activation if there are no errors
       await new Promise((resolve, reject) => {
         chrome.storage.sync.set({
           'premiumStatus': {
@@ -236,8 +238,29 @@ async function verifyLicenseKey(licenseKey) {
           }
         });
       });
+      return data;
+    } else {
+      // Extract error message if present
+      let errorMessage = 'License verification failed';
+      if (data.data?.errors?.lmfwc_rest_data_error && 
+          data.data.errors.lmfwc_rest_data_error.length > 0) {
+        errorMessage = data.data.errors.lmfwc_rest_data_error[0];
+      }
+      
+      // Store failed activation status
+      await new Promise((resolve) => {
+        chrome.storage.sync.set({
+          'premiumStatus': {
+            active: false,
+            licenseKey: licenseKey,
+            activationAttempted: new Date().toISOString(),
+            reason: errorMessage
+          }
+        }, resolve);
+      });
+      
+      throw new Error(errorMessage);
     }
-    return data;
   } catch (error) {
     console.error('License verification error:', error);
     throw error;
@@ -259,7 +282,7 @@ async function refreshLicense(licenseKey) {
     });
     
     // Update premium status based on API response
-    if (data && data.success === true) {
+    if (data && data.success === true && !data.data?.errors) {
       await new Promise((resolve, reject) => {
         chrome.storage.sync.set({
           'premiumStatus': {
@@ -280,14 +303,21 @@ async function refreshLicense(licenseKey) {
         });
       });
     } else {
-      // License is invalid, update storage accordingly
+      // License is invalid, extract error message if present
+      let errorMessage = 'License is no longer valid';
+      if (data.data?.errors?.lmfwc_rest_data_error && 
+          data.data.errors.lmfwc_rest_data_error.length > 0) {
+        errorMessage = data.data.errors.lmfwc_rest_data_error[0];
+      }
+      
+      // Update storage with error information
       await new Promise((resolve, reject) => {
         chrome.storage.sync.set({
           'premiumStatus': {
             active: false,
             licenseKey: licenseKey,
             deactivatedOn: new Date().toISOString(),
-            reason: data.message || 'License is no longer valid'
+            reason: errorMessage
           }
         }, () => {
           if (chrome.runtime.lastError) {
