@@ -214,10 +214,8 @@ async function makeLicenseApiRequest(endpoint, licenseKey) {
 async function verifyLicenseKey(licenseKey) {
   try {
     const data = await makeLicenseApiRequest(LICENSE_API_CONFIG.endpoints.activate, licenseKey);
-    
-    // The API returns success:true even for error cases, so we need to check for errors in data
+
     if (data && data.success === true && !data.data?.errors) {
-      // Only consider it a successful activation if there are no errors
       await new Promise((resolve, reject) => {
         chrome.storage.sync.set({
           'premiumStatus': {
@@ -240,14 +238,12 @@ async function verifyLicenseKey(licenseKey) {
       });
       return data;
     } else {
-      // Extract error message if present
       let errorMessage = 'License verification failed';
       if (data.data?.errors?.lmfwc_rest_data_error && 
           data.data.errors.lmfwc_rest_data_error.length > 0) {
         errorMessage = data.data.errors.lmfwc_rest_data_error[0];
       }
       
-      // Store failed activation status
       await new Promise((resolve) => {
         chrome.storage.sync.set({
           'premiumStatus': {
@@ -276,12 +272,10 @@ async function refreshLicense(licenseKey) {
   try {
     const data = await makeLicenseApiRequest(LICENSE_API_CONFIG.endpoints.validate, licenseKey);
     
-    // Get current premium status
     const { premiumStatus } = await new Promise(resolve => {
       chrome.storage.sync.get(['premiumStatus'], resolve);
     });
     
-    // Update premium status based on API response
     if (data && data.success === true && !data.data?.errors) {
       await new Promise((resolve, reject) => {
         chrome.storage.sync.set({
@@ -303,14 +297,12 @@ async function refreshLicense(licenseKey) {
         });
       });
     } else {
-      // License is invalid, extract error message if present
       let errorMessage = 'License is no longer valid';
       if (data.data?.errors?.lmfwc_rest_data_error && 
           data.data.errors.lmfwc_rest_data_error.length > 0) {
         errorMessage = data.data.errors.lmfwc_rest_data_error[0];
       }
       
-      // Update storage with error information
       await new Promise((resolve, reject) => {
         chrome.storage.sync.set({
           'premiumStatus': {
@@ -350,7 +342,6 @@ async function deactivateLicense(licenseKey) {
   try {
     const data = await makeLicenseApiRequest(LICENSE_API_CONFIG.endpoints.deactivate, licenseKey);
     
-    // Remove premium status from storage regardless of API response
     await new Promise((resolve) => {
       chrome.storage.sync.remove(['premiumStatus'], resolve);
     });
@@ -362,7 +353,6 @@ async function deactivateLicense(licenseKey) {
   } catch (error) {
     console.error('License deactivation error:', error);
     
-    // Even if API fails, remove premium status locally
     await new Promise((resolve) => {
       chrome.storage.sync.remove(['premiumStatus'], resolve);
     });
