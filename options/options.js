@@ -1306,6 +1306,28 @@ function deactivateLicense() {
     return;
   }
   
+  // Create or get status message container below the deactivate button
+  const licenseActionButtons = document.getElementById('licenseActionButtons');
+  let deactivateStatusMessage = document.getElementById('deactivateStatusMessage');
+  
+  if (!deactivateStatusMessage) {
+    deactivateStatusMessage = document.createElement('div');
+    deactivateStatusMessage.id = 'deactivateStatusMessage';
+    deactivateStatusMessage.className = 'deactivate-status-message';
+    licenseActionButtons.parentNode.insertBefore(deactivateStatusMessage, licenseActionButtons.nextSibling);
+  }
+  
+  // Display initial status message
+  showDeactivateMessage('Deactivating license...', 'blue');
+  
+  // Disable the deactivate button to prevent multiple clicks
+  const deactivateBtn = document.getElementById('deactivateLicenseBtn');
+  if (deactivateBtn) {
+    deactivateBtn.disabled = true;
+    deactivateBtn.style.opacity = '0.6';
+    deactivateBtn.textContent = 'Deactivating...';
+  }
+  
   // Use getLicenseInfo to properly retrieve the encrypted premium status
   chrome.runtime.sendMessage({action: "getLicenseInfo"}, (response) => {
     if (chrome.runtime.lastError) {
@@ -1326,8 +1348,6 @@ function deactivateLicense() {
       removeLicenseLocally('No license key found. License deactivated locally.', 'orange');
       return;
     }
-    
-    showStatusMessage('Deactivating license...', 'blue');
     
     chrome.runtime.sendMessage(
       {action: "deactivateLicense", licenseKey: licenseKey},
@@ -1356,7 +1376,7 @@ function deactivateLicense() {
         
         if (localDeactivation) {
           isPremiumUser = false;
-          showStatusMessage(message, 'orange');
+          showDeactivateMessage(message, 'orange');
           // Force a full page reload to ensure all UI elements update correctly
           setTimeout(() => window.location.reload(), 1500);
         } else {
@@ -1366,13 +1386,24 @@ function deactivateLicense() {
     );
   });
   
-  function showStatusMessage(message, color) {
-    customStatus.innerHTML = `<div style="color: ${color};">${message}</div>`;
+  // Show message in the dedicated deactivate status container
+  function showDeactivateMessage(message, color) {
+    if (deactivateStatusMessage) {
+      deactivateStatusMessage.innerHTML = `<div style="color: ${color}; margin-top: 10px;">${message}</div>`;
+    }
   }
   
   function removeLicenseLocally(message, color) {
     isPremiumUser = false;
-    showStatusMessage(message, color);
+    showDeactivateMessage(message, color);
+    
+    // Re-enable button (though page will reload soon)
+    if (deactivateBtn) {
+      deactivateBtn.disabled = false;
+      deactivateBtn.style.opacity = '1';
+      deactivateBtn.textContent = 'Deactivate License';
+    }
+    
     // Force a full page reload to ensure all UI elements update correctly
     setTimeout(() => window.location.reload(), 1500);
   }
