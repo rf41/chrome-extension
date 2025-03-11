@@ -196,8 +196,10 @@ function displayUserStats() {
         response.shortcuts.forEach(shortcut => {
           if (shortcut.url) {
             try {
+              // Normalize domain by removing www. prefix
               const url = new URL(shortcut.url);
-              uniqueDomains.add(url.hostname);
+              const normalizedDomain = url.hostname.replace(/^www\./, '');
+              uniqueDomains.add(normalizedDomain);
             } catch (e) {
               console.warn("Invalid URL in shortcut:", shortcut.url);
             }
@@ -225,8 +227,10 @@ function displayUserStats() {
           syncData.customShortcuts.forEach(shortcut => {
             if (shortcut.url) {
               try {
+                // Normalize domain by removing www. prefix
                 const url = new URL(shortcut.url);
-                uniqueDomains.add(url.hostname);
+                const normalizedDomain = url.hostname.replace(/^www\./, '');
+                uniqueDomains.add(normalizedDomain);
               } catch (e) {
                 // Skip invalid URLs
               }
@@ -251,8 +255,10 @@ function displayUserStats() {
           localData.customShortcuts.forEach(shortcut => {
             if (shortcut.url) {
               try {
+                // Normalize domain by removing www. prefix
                 const url = new URL(shortcut.url);
-                uniqueDomains.add(url.hostname);
+                const normalizedDomain = url.hostname.replace(/^www\./, '');
+                uniqueDomains.add(normalizedDomain);
               } catch (e) {
                 // Skip invalid URLs
               }
@@ -273,8 +279,10 @@ function displayUserStats() {
             shortcutCount++;
             
             try {
+              // Normalize domain by removing www. prefix
               const url = new URL(item.url);
-              uniqueDomains.add(url.hostname);
+              const normalizedDomain = url.hostname.replace(/^www\./, '');
+              uniqueDomains.add(normalizedDomain);
             } catch (e) {
               // Skip invalid URLs
             }
