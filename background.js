@@ -144,38 +144,38 @@ chrome.commands.onCommand.addListener(async (command) => {
   }
 });
 
-const API_CREDENTIALS = {
-  consumerKey: 'ck_9eeb9517833188c72cdf4d94dac63f6cbc18ba3c',
-  consumerSecret: 'cs_6ac366de7eae5804493d735e58d08b85db8944cb'
-};
-
-function getAuthorizationHeader() {
-  return btoa(`${API_CREDENTIALS.consumerKey}:${API_CREDENTIALS.consumerSecret}`);
-}
-
 // Centralized License API Configuration and Functions
 const LICENSE_API_CONFIG = {
   baseUrl: 'https://ridwancard.my.id',
   endpoints: {
-    activate: '/wp-json/lmfwc/v2/licenses/activate/',
-    validate: '/wp-json/lmfwc/v2/licenses/validate/',
-    deactivate: '/wp-json/lmfwc/v2/licenses/deactivate/'
+    middleware: '/v1/api.php',
+    activate: '?action=activate',
+    validate: '?action=validate',
+    deactivate: '?action=deactivate'
   }
 };
 
 /**
- * Make a request to the license API
- * @param {string} endpoint - The API endpoint
+ * Make a request to the license API middleware
+ * @param {string} action - The API action (activate, validate, deactivate)
  * @param {string} licenseKey - The license key
  * @returns {Promise<Object>} The API response
  */
-async function makeLicenseApiRequest(endpoint, licenseKey) {
-  const url = `${LICENSE_API_CONFIG.baseUrl}${endpoint}${licenseKey}`;
+async function makeLicenseApiRequest(action, licenseKey) {
+  if (!action || !licenseKey) {
+    throw new Error('Action and license key are required');
+  }
+
+  const url = `${LICENSE_API_CONFIG.baseUrl}${LICENSE_API_CONFIG.endpoints.middleware}`;
+  const params = new URLSearchParams({
+    action: action,
+    license_key: licenseKey,
+    instance: chrome.runtime.id
+  });
   
-  const response = await fetch(url, {
+  const response = await fetch(`${url}?${params.toString()}`, {
     method: 'GET',
     headers: {
-      'Authorization': `Basic ${getAuthorizationHeader()}`,
       'Content-Type': 'application/json'
     }
   });
@@ -213,19 +213,19 @@ async function makeLicenseApiRequest(endpoint, licenseKey) {
  */
 async function verifyLicenseKey(licenseKey) {
   try {
-    const data = await makeLicenseApiRequest(LICENSE_API_CONFIG.endpoints.activate, licenseKey);
+    const data = await makeLicenseApiRequest('activate', licenseKey);
 
-    if (data && data.success === true && !data.data?.errors) {
+    if (data && data.success === true) {
       await new Promise((resolve, reject) => {
         chrome.storage.sync.set({
           'premiumStatus': {
             active: true,
             activatedOn: new Date().toISOString(),
             licenseKey: licenseKey,
-            expiresOn: data.data?.expiresAt || null,
-            timesActivated: data.data?.timesActivated || 0,
-            timesActivatedMax: data.data?.timesActivatedMax || 1,
-            remainingActivations: data.data?.remainingActivations || 1,
+            expiresOn: data.data?.expires_at || null,
+            timesActivated: data.data?.times_activated || 0,
+            timesActivatedMax: data.data?.times_activated_max || 1,
+            remainingActivations: data.data?.remaining_activations || 1,
             lastVerified: new Date().toISOString()
           }
         }, () => {
@@ -239,9 +239,8 @@ async function verifyLicenseKey(licenseKey) {
       return data;
     } else {
       let errorMessage = 'License verification failed';
-      if (data.data?.errors?.lmfwc_rest_data_error && 
-          data.data.errors.lmfwc_rest_data_error.length > 0) {
-        errorMessage = data.data.errors.lmfwc_rest_data_error[0];
+      if (data.message) {
+        errorMessage = data.message;
       }
       
       await new Promise((resolve) => {
@@ -270,23 +269,23 @@ async function verifyLicenseKey(licenseKey) {
  */
 async function refreshLicense(licenseKey) {
   try {
-    const data = await makeLicenseApiRequest(LICENSE_API_CONFIG.endpoints.validate, licenseKey);
+    const data = await makeLicenseApiRequest('validate', licenseKey);
     
     const { premiumStatus } = await new Promise(resolve => {
       chrome.storage.sync.get(['premiumStatus'], resolve);
     });
     
-    if (data && data.success === true && !data.data?.errors) {
+    if (data && data.success === true) {
       await new Promise((resolve, reject) => {
         chrome.storage.sync.set({
           'premiumStatus': {
             active: true,
             activatedOn: premiumStatus?.activatedOn || new Date().toISOString(),
             licenseKey: licenseKey,
-            expiresOn: data.data?.expiresAt || null,
+            expiresOn: data.data?.expires_at || null,
             lastVerified: new Date().toISOString(),
-            timesActivated: data.data?.timesActivated || 1,
-            timesActivatedMax: data.data?.timesActivatedMax || null
+            timesActivated: data.data?.times_activated || 1,
+            timesActivatedMax: data.data?.times_activated_max || null
           }
         }, () => {
           if (chrome.runtime.lastError) {
@@ -298,9 +297,8 @@ async function refreshLicense(licenseKey) {
       });
     } else {
       let errorMessage = 'License is no longer valid';
-      if (data.data?.errors?.lmfwc_rest_data_error && 
-          data.data.errors.lmfwc_rest_data_error.length > 0) {
-        errorMessage = data.data.errors.lmfwc_rest_data_error[0];
+      if (data.message) {
+        errorMessage = data.message;
       }
       
       await new Promise((resolve, reject) => {
@@ -340,7 +338,7 @@ async function refreshLicense(licenseKey) {
  */
 async function deactivateLicense(licenseKey) {
   try {
-    const data = await makeLicenseApiRequest(LICENSE_API_CONFIG.endpoints.deactivate, licenseKey);
+    const data = await makeLicenseApiRequest('deactivate', licenseKey);
     
     await new Promise((resolve) => {
       chrome.storage.sync.remove(['premiumStatus'], resolve);
@@ -443,8 +441,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true;
       
     case "licenseApiRequest":
-      handleLicenseApiRequest(message, sendResponse);
-      return true; 
+      if (!message.action || !message.licenseKey) {
+        sendResponse({ success: false, error: "Invalid license API request" });
+        return true;
+      }
+      
+      const action = message.endpoint.includes('activate') ? 'activate' : 
+                    message.endpoint.includes('validate') ? 'validate' : 
+                    message.endpoint.includes('deactivate') ? 'deactivate' : '';
+      
+      if (!action) {
+        sendResponse({ success: false, error: "Invalid license action" });
+        return true;
+      }
+      
+      makeLicenseApiRequest(action, message.licenseKey)
+        .then(data => sendResponse({ success: true, data }))
+        .catch(error => sendResponse({ success: false, error: error.message }));
+      return true;
       
     case "verifyLicenseKey":
       verifyLicenseKey(message.licenseKey)
