@@ -1613,9 +1613,9 @@ function showModal(title, content) {
 }
 
 function addLicenseManagementSection() {
-  const settingsContainer = document.querySelector('.shortcut-note.highlight') || document.body;
+  const highlightContainer = document.querySelector('.shortcut-note .highlight') || document.querySelector('.shortcut-note');
   
-  if (!document.getElementById('licenseManagementSection')) {
+  if (!document.getElementById('licenseManagementSection') && highlightContainer) {
     const licenseSection = document.createElement('div');
     licenseSection.id = 'licenseManagementSection';
     licenseSection.className = 'collapsible-container';
@@ -1635,12 +1635,8 @@ function addLicenseManagementSection() {
       </div>
     `;
     
-    const form = document.getElementById('shortcutForm');
-    if (form && form.parentNode) {
-      form.parentNode.insertBefore(licenseSection, form);
-    } else {
-      settingsContainer.appendChild(licenseSection);
-    }
+    // Insert into the highlight container instead of before the form
+    highlightContainer.appendChild(licenseSection);
     
     const header = licenseSection.querySelector('.collapsible-header');
     const content = licenseSection.querySelector('.collapsible-content');
