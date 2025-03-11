@@ -1095,7 +1095,7 @@ function displayPremiumStatus() {
       `<div class="free-badge">
          <span class="free-icon">ℹ</span>
          <span class="free-text">Free User</span>
-         <span class="free-feature">Limited to ${FREE_USER_LIMIT} shortcuts per domain</span>
+         <span class="free-feature">Limited to ${FREE_USER_LIMIT} shortcuts per website</span>
          <button id="upgradeToPremium" class="upgrade-btn">Upgrade to Premium</button>
        </div>`;
 
@@ -1189,7 +1189,6 @@ const LICENSE_API_CONFIG = {
   baseUrl: 'https://ridwancard.my.id',
   endpoints: {
     activate: '/wp-json/lmfwc/v2/licenses/activate/',
-    validate: '/wp-json/lmfwc/v2/licenses/validate/',
     deactivate: '/wp-json/lmfwc/v2/licenses/deactivate/'
   }
 };
@@ -1447,10 +1446,6 @@ function updateLicenseDetails() {
   });
 }
 
-document.getElementById('openShortcutsPage').addEventListener('click', () => {
-  chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
-});
-
 function initCollapsibleSections() {
   const collapsibles = document.querySelectorAll('.collapsible-header');
   
@@ -1629,7 +1624,6 @@ function addLicenseManagementSection() {
           Loading license information...
         </div>
         <div id="licenseActionButtons" style="margin-top: 15px; display: none;">
-          <button id="refreshLicenseBtn" class="primary-btn">Refresh License</button>
           <button id="deactivateLicenseBtn" class="deactivated-btn">Deactivate License</button>
         </div>
       </div>
@@ -1653,7 +1647,6 @@ function addLicenseManagementSection() {
       }
     });
     
-    document.getElementById('refreshLicenseBtn').addEventListener('click', refreshLicense);
     document.getElementById('deactivateLicenseBtn').addEventListener('click', deactivateLicense);
     
     updateLicenseDetails();

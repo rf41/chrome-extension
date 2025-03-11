@@ -338,25 +338,190 @@ async function makeLicenseApiRequest(action, licenseKey) {
 }
 
 /**
+ * Extract error message from API response
+ * @param {Object} data - The API response data
+ * @returns {string|null} - Error message or null if no errors found
+ */
+function extractErrorMessage(data) {
+  // Handle deeply nested errors (up to 3 levels)
+  if (data && data.data) {
+    // First level - direct errors in data.data.errors
+    if (data.data.errors) {
+      const errors = data.data.errors;
+      if (errors.lmfwc_rest_data_error && errors.lmfwc_rest_data_error.length > 0) {
+        return errors.lmfwc_rest_data_error.join(', ');
+      }
+      
+      // Extract first error from any error property
+      for (const key in errors) {
+        if (Array.isArray(errors[key]) && errors[key].length > 0) {
+          return errors[key].join(', ');
+        }
+      }
+    }
+    
+    // Second level - errors in data.data.data.errors
+    if (data.data.data && data.data.data.errors) {
+      const errors = data.data.data.errors;
+      if (errors.lmfwc_rest_data_error && errors.lmfwc_rest_data_error.length > 0) {
+        return errors.lmfwc_rest_data_error.join(', ');
+      }
+      
+      for (const key in errors) {
+        if (Array.isArray(errors[key]) && errors[key].length > 0) {
+          return errors[key].join(', ');
+        }
+      }
+    }
+  }
+  
+  // Check for direct error message
+  if (data.message) {
+    return data.message;
+  }
+  
+  return null;
+}
+
+/**
+ * Check if license response indicates success
+ * @param {Object} data - API response data
+ * @returns {boolean} - True if valid license
+ */
+function isValidLicenseResponse(data) {
+  // If there's no data property at all, it's not valid
+  if (!data) return false;
+  
+  console.debug('License response structure:', JSON.stringify({
+    hasSuccess: data.success,
+    hasDataObject: !!data.data,
+    hasNestedSuccess: data.data && data.data.success,
+    hasDoubleNestedData: data.data && data.data.data,
+    responseKeys: Object.keys(data)
+  }));
+  
+  // Check for error patterns at various depths
+  if (data.errors) return false;
+  if (data.data && data.data.errors) return false;
+  if (data.data && data.data.data && data.data.data.errors) return false;
+  
+  // Special case: Handle the doubly nested response structure
+  // where license data is in data.data.data
+  if (data.success === true && 
+      data.data && 
+      data.data.success === true && 
+      data.data.data) {
+    
+    const licenseData = data.data.data;
+    
+    // Check if it has key license attributes
+    if (licenseData.id && 
+        licenseData.licenseKey && 
+        licenseData.status !== undefined) {
+      console.debug('Found valid license data in nested structure');
+      return true;
+    }
+  }
+  
+  // Special case for validation responses - may be structured differently
+  if (data.success === true && data.data && data.data.success === true) {
+    // For validation responses, this might be enough to indicate success
+    console.debug('Found success validation response structure');
+    return true;
+  }
+  
+  // Check for presence of license key in standard locations
+  const hasLicenseKey = (data.licenseKey) || 
+                       (data.data && data.data.licenseKey) ||
+                       (data.data && data.data.data && data.data.data.licenseKey);
+  
+  // Check for valid license data in standard locations
+  if (data.data) {
+    if (typeof data.data.id === 'number' && 
+        data.data.licenseKey && 
+        data.data.status !== undefined) {
+      return true;
+    }
+    
+    if (data.data.status === 2 || data.data.status === "active") {
+      return true;
+    }
+  }
+  
+  // If we have license key and no errors, consider it valid
+  return hasLicenseKey && data.success === true;
+}
+
+/**
+ * Get the license details from potentially nested response structures
+ * @param {Object} data - The API response
+ * @returns {Object} - The extracted license details
+ */
+function extractLicenseDetails(data) {
+  // Case 1: Double nested structure (data.data.data)
+  if (data.data && data.data.data && data.data.data.licenseKey) {
+    console.debug('Extracting license details from doubly nested structure');
+    return data.data.data;
+  }
+  
+  // Case 2: Single nested structure (data.data)
+  if (data.data && data.data.licenseKey) {
+    console.debug('Extracting license details from singly nested structure');
+    return data.data;
+  }
+  
+  // Case 3: Direct structure
+  if (data.licenseKey) {
+    console.debug('Extracting license details from direct structure');
+    return data;
+  }
+  
+  // Default: return empty object if no recognizable structure found
+  console.warn('No recognizable license structure found');
+  return {};
+}
+
+/**
  * Check if a license key is valid
  * @param {string} licenseKey - The license key to verify
  * @returns {Promise<Object>} The API response
  */
 async function verifyLicenseKey(licenseKey) {
   try {
+    console.debug('Activating license:', licenseKey);
     const data = await makeLicenseApiRequest('activate', licenseKey);
-
-    if (data && data.success === true) {
+    console.debug('License activation response:', JSON.stringify(data));
+    
+    // Detailed validation of the license response
+    const isSuccessful = isValidLicenseResponse(data);
+    console.debug('License validation result:', isSuccessful);
+    
+    if (isSuccessful) {
+      // Extract license details from the appropriate location in the response
+      const licenseDetails = extractLicenseDetails(data);
+      console.debug('Extracted license details:', JSON.stringify(licenseDetails));
+      
       // Encrypt the premium status before storing
       const premiumStatus = {
         active: true,
         activatedOn: new Date().toISOString(),
         licenseKey: licenseKey,
-        expiresOn: data.data?.expires_at || null,
-        timesActivated: data.data?.times_activated || 0,
-        timesActivatedMax: data.data?.times_activated_max || 1,
-        remainingActivations: data.data?.remaining_activations || 1,
-        lastVerified: new Date().toISOString()
+        expiresOn: licenseDetails.expiresAt || null,
+        timesActivated: licenseDetails.timesActivated || 1,
+        timesActivatedMax: licenseDetails.timesActivatedMax || 1,
+        remainingActivations: 
+          (licenseDetails.timesActivatedMax && licenseDetails.timesActivated) 
+            ? (licenseDetails.timesActivatedMax - licenseDetails.timesActivated) 
+            : 0,
+        lastVerified: new Date().toISOString(),
+        licenseId: licenseDetails.id || null,
+        responseData: data, // Store full response for debugging
+        responseStructure: {
+          hasSuccess: data.success,
+          hasDataObject: !!data.data,
+          hasNestedSuccess: data.data && data.data.success,
+          hasDoubleNestedData: data.data && data.data.data
+        }
       };
       
       const encryptedStatus = await encryptData(premiumStatus);
@@ -374,16 +539,16 @@ async function verifyLicenseKey(licenseKey) {
       });
       return data;
     } else {
-      let errorMessage = 'License verification failed';
-      if (data.message) {
-        errorMessage = data.message;
-      }
+      // Extract error message from response
+      let errorMessage = extractErrorMessage(data) || 'License verification failed';
+      console.error('License activation failed:', errorMessage);
       
       const premiumStatus = {
         active: false,
         licenseKey: licenseKey,
         activationAttempted: new Date().toISOString(),
-        reason: errorMessage
+        reason: errorMessage,
+        responseData: data // Store full response for debugging
       };
       
       const encryptedStatus = await encryptData(premiumStatus);
@@ -398,101 +563,6 @@ async function verifyLicenseKey(licenseKey) {
     }
   } catch (error) {
     console.error('License verification error:', error);
-    throw error;
-  }
-}
-
-/**
- * Refresh a license with the API
- * @param {string} licenseKey - The license key to refresh
- * @returns {Promise<Object>} The API response with updated storage status
- */
-async function refreshLicense(licenseKey) {
-  try {
-    const data = await makeLicenseApiRequest('validate', licenseKey);
-    
-    // Get and decrypt current premium status
-    const encryptedStatus = await new Promise(resolve => {
-      chrome.storage.sync.get(['encryptedPremiumStatus'], result => {
-        resolve(result.encryptedPremiumStatus);
-      });
-    });
-    
-    let premiumStatus = null;
-    if (encryptedStatus) {
-      premiumStatus = await decryptData(encryptedStatus);
-    }
-    
-    if (data && data.success === true) {
-      // Update and encrypt the premium status
-      const updatedStatus = {
-        active: true,
-        activatedOn: premiumStatus?.activatedOn || new Date().toISOString(),
-        licenseKey: licenseKey,
-        expiresOn: data.data?.expires_at || null,
-        lastVerified: new Date().toISOString(),
-        timesActivated: data.data?.times_activated || 1,
-        timesActivatedMax: data.data?.times_activated_max || null
-      };
-      
-      const newEncryptedStatus = await encryptData(updatedStatus);
-      
-      await new Promise((resolve, reject) => {
-        chrome.storage.sync.set({
-          'encryptedPremiumStatus': newEncryptedStatus
-        }, () => {
-          if (chrome.runtime.lastError) {
-            reject(chrome.runtime.lastError);
-          } else {
-            resolve();
-          }
-        });
-      });
-    } else {
-      let errorMessage = 'License is no longer valid';
-      if (data.message) {
-        errorMessage = data.message;
-      }
-      
-      // Update and encrypt the deactivated status
-      const deactivatedStatus = {
-        active: false,
-        licenseKey: licenseKey,
-        deactivatedOn: new Date().toISOString(),
-        reason: errorMessage
-      };
-      
-      const newEncryptedStatus = await encryptData(deactivatedStatus);
-      
-      await new Promise((resolve, reject) => {
-        chrome.storage.sync.set({
-          'encryptedPremiumStatus': newEncryptedStatus
-        }, () => {
-          if (chrome.runtime.lastError) {
-            reject(chrome.runtime.lastError);
-          } else {
-            resolve();
-          }
-        });
-      });
-    }
-    
-    // Get the updated encrypted status
-    const newEncryptedStatus = await new Promise(resolve => {
-      chrome.storage.sync.get(['encryptedPremiumStatus'], result => {
-        resolve(result.encryptedPremiumStatus);
-      });
-    });
-    
-    // Decrypt for sending in response
-    const decryptedStatus = await decryptData(newEncryptedStatus);
-    
-    return {
-      apiResponse: data,
-      updatedStatus: { premiumStatus: decryptedStatus }
-    };
-  } catch (error) {
-    console.error('License refresh error:', error);
     throw error;
   }
 }
@@ -597,7 +667,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
         
         const url = message.url;
-        const valid = isValidUrl(url);  // Changed from validateUrl to isValidUrl
+        const valid = isValidUrl(url);
         const reason = valid ? "" : "URL contains suspicious patterns or is improperly formatted";
         
         sendResponse({
@@ -642,12 +712,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         .catch(error => sendResponse({ success: false, error: error.message }));
       return true;
 
-    case "refreshLicense":
-      refreshLicense(message.licenseKey)
-        .then(data => sendResponse({ success: true, data }))
-        .catch(error => sendResponse({ success: false, error: error.message }));
-      return true;
-
     case "deactivateLicense":
       deactivateLicense(message.licenseKey)
         .then(data => sendResponse({ success: true, data }))
@@ -666,7 +730,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         success: false, 
         error: "Unknown action type",
         supportedActions: ["getShortcuts", "openOptions", "validateUrl", "licenseApiRequest", 
-                          "verifyLicenseKey", "refreshLicense", "deactivateLicense", "getLicenseInfo"]
+                          "verifyLicenseKey", "deactivateLicense", "getLicenseInfo"]
       });
       return true;
   }
