@@ -299,14 +299,16 @@ async function makeLicenseApiRequest(action, licenseKey, token) {
   }
 
   const url = `${LICENSE_API_CONFIG.baseUrl}${LICENSE_API_CONFIG.endpoints.middleware}`;
+  
+  // Set up the base parameters
   const params = new URLSearchParams({
     action: action,
     license_key: licenseKey,
     extension_id: chrome.runtime.id
   });
   
-  // Add token if available (for deactivation)
-  if (token) {
+  // For deactivation, format parameters differently with token
+  if (action === 'deactivate' && token) {
     params.append('token', token);
   }
   

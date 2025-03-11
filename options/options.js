@@ -344,9 +344,6 @@ function loadCustomShortcuts(sortColumn = 'domain', sortDirection = 'asc') {
   
   chrome.storage.sync.get(['customShortcuts'], (result) => {
     let shortcuts = result.customShortcuts || [];
-    
-    console.log("Loaded shortcuts:", shortcuts);
-
     const domainGroups = {};
     shortcuts.forEach((shortcut, originalIndex) => {
       const domain = shortcut.domains && shortcut.domains.length > 0 ? 
@@ -597,7 +594,6 @@ function checkChromeAPIs() {
     try {
       chrome.commands.getAll(() => {
         hasCommandsAPI = true;
-        console.log('Chrome commands API is available');
         updateShortcutDisplayTable();
       });
     } catch (e) {
@@ -1257,6 +1253,10 @@ function deactivateLicense() {
     deactivateBtn.textContent = 'Deactivating...';
   }
   
+  // Get the token directly from the hidden input if possible
+  const tokenInput = document.getElementById('licenseToken');
+  let tokenFromInput = tokenInput ? tokenInput.value : '';
+  
   // Use getLicenseInfo to properly retrieve the encrypted premium status
   chrome.runtime.sendMessage({action: "getLicenseInfo"}, (response) => {
     if (chrome.runtime.lastError) {
@@ -1272,7 +1272,8 @@ function deactivateLicense() {
     }
     
     const licenseKey = response.data.licenseKey;
-    const token = response.data.token || ''; // Include token in deactivation
+    // Use token from input field first, fall back to response data
+    const token = tokenFromInput || response.data.token || '';
     
     if (!licenseKey) {
       removeLicenseLocally('No license key found. License deactivated locally.', 'orange');
@@ -1283,7 +1284,7 @@ function deactivateLicense() {
       {
         action: "deactivateLicense", 
         licenseKey: licenseKey,
-        token: token // Send token with the deactivation request
+        token: token
       },
       (response) => {
         if (chrome.runtime.lastError) {
@@ -1390,8 +1391,9 @@ function updateLicenseDetails() {
       const activationInfo = premiumData.timesActivatedMax ? 
         `<p><strong>Activations:</strong> ${premiumData.timesActivated || 1} / ${premiumData.timesActivatedMax}</p>` : '';
       
-      // Add token info as a hidden field (for security)
-      const tokenInfo = premiumData.token;
+      // Store token as a hidden input field
+      const tokenInfo = premiumData.token ? 
+        `<input type="hidden" id="licenseToken" value="${premiumData.token}">` : '';
       
       licenseDetails.innerHTML = `
         <div class="license-active">
