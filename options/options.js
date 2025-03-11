@@ -1306,23 +1306,35 @@ function deactivateLicense() {
     return;
   }
   
-  chrome.storage.sync.get(['premiumStatus'], (result) => {
-    const premiumData = result.premiumStatus || {};
-    const licenseKey = premiumData.licenseKey;
-    
-    showStatusMessage('Deactivating license...', 'blue');
-    
-    if (!licenseKey) {
-      removeLicenseLocally('License deactivated. You\'re now using the free version.', 'orange');
+  // Use getLicenseInfo to properly retrieve the encrypted premium status
+  chrome.runtime.sendMessage({action: "getLicenseInfo"}, (response) => {
+    if (chrome.runtime.lastError) {
+      console.error('License info retrieval error:', chrome.runtime.lastError);
+      removeLicenseLocally('Error retrieving license information. License deactivated locally.', 'orange');
       return;
     }
+    
+    if (!response || !response.success || !response.data) {
+      console.error('Invalid license info response:', response);
+      removeLicenseLocally('No license information found. License deactivated locally.', 'orange');
+      return;
+    }
+    
+    const licenseKey = response.data.licenseKey;
+    
+    if (!licenseKey) {
+      removeLicenseLocally('No license key found. License deactivated locally.', 'orange');
+      return;
+    }
+    
+    showStatusMessage('Deactivating license...', 'blue');
     
     chrome.runtime.sendMessage(
       {action: "deactivateLicense", licenseKey: licenseKey},
       (response) => {
         if (chrome.runtime.lastError) {
           console.error('License deactivation error:', chrome.runtime.lastError);
-          removeLicenseLocally('License deactivated locally. You\'re now using the free version.', 'orange');
+          removeLicenseLocally('License deactivated locally due to error. You\'re now using the free version.', 'orange');
           return;
         }
         
@@ -1343,8 +1355,10 @@ function deactivateLicense() {
         }
         
         if (localDeactivation) {
+          isPremiumUser = false;
           showStatusMessage(message, 'orange');
-          window.location.reload();
+          // Force a full page reload to ensure all UI elements update correctly
+          setTimeout(() => window.location.reload(), 1500);
         } else {
           removeLicenseLocally(message, 'orange');
         }
@@ -1357,10 +1371,10 @@ function deactivateLicense() {
   }
   
   function removeLicenseLocally(message, color) {
-    chrome.storage.sync.remove(['premiumStatus'], () => {
-      showStatusMessage(message, color);
-      window.location.reload();
-    });
+    isPremiumUser = false;
+    showStatusMessage(message, color);
+    // Force a full page reload to ensure all UI elements update correctly
+    setTimeout(() => window.location.reload(), 1500);
   }
 }
 
