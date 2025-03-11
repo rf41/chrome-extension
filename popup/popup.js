@@ -84,6 +84,28 @@ function displayUserStats() {
   
   function checkLicenseStatus() {
     return new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage({action: "getLicenseInfo"}, (response) => {
+        if (chrome.runtime.lastError) {
+          reject(chrome.runtime.lastError);
+          return;
+        }
+        
+        if (response && response.success && response.data) {
+          resolve({ 
+            isActive: response.data.active === true, 
+            source: 'encrypted-storage',
+            license: response.data
+          });
+        } else {
+          // Fall back to legacy methods if the new encrypted method fails
+          fallbackLicenseCheck().then(resolve).catch(reject);
+        }
+      });
+    });
+  }
+  
+  function fallbackLicenseCheck() {
+    return new Promise((resolve, reject) => {
       chrome.storage.sync.get(['premiumStatus'], (syncData) => {
         if (syncData.premiumStatus && syncData.premiumStatus.active === true) {
           resolve({ isActive: true, source: 'premium-status' });

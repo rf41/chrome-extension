@@ -73,8 +73,12 @@ function getColorFromText(text) {
  */
 function isPremiumUser() {
   return new Promise(resolve => {
-    chrome.storage.sync.get(['premiumStatus'], (result) => {
-      resolve(result.premiumStatus && result.premiumStatus.active === true);
+    chrome.runtime.sendMessage({action: "getLicenseInfo"}, (response) => {
+      if (response && response.success && response.data && response.data.active === true) {
+        resolve(true);
+      } else {
+        resolve(false);
+      }
     });
   });
 }

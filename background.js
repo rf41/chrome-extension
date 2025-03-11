@@ -5,6 +5,137 @@
 
 const DEFAULT_URL = "chrome://newtab";
 
+// Add encryption utilities
+const ENCRYPTION_KEY_STORAGE_NAME = 'secure_storage_key';
+const ENCRYPTION_IV_LENGTH = 12;
+const ENCRYPTION_SALT_LENGTH = 16;
+const ENCRYPTION_ITERATIONS = 100000;
+
+// Generate a secure encryption key or retrieve existing one
+async function getEncryptionKey() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get([ENCRYPTION_KEY_STORAGE_NAME], async (result) => {
+      if (result[ENCRYPTION_KEY_STORAGE_NAME]) {
+        // Key exists, use it
+        resolve(result[ENCRYPTION_KEY_STORAGE_NAME]);
+      } else {
+        // Generate a new encryption key (32 random bytes encoded as base64)
+        const keyArray = new Uint8Array(32);
+        crypto.getRandomValues(keyArray);
+        const newKey = btoa(String.fromCharCode.apply(null, keyArray));
+        
+        // Store the key and return it
+        chrome.storage.local.set({ [ENCRYPTION_KEY_STORAGE_NAME]: newKey }, () => {
+          resolve(newKey);
+        });
+      }
+    });
+  });
+}
+
+// Encrypt sensitive data
+async function encryptData(data) {
+  try {
+    const keyMaterial = await getEncryptionKey();
+    
+    // Create salt and IV
+    const salt = crypto.getRandomValues(new Uint8Array(ENCRYPTION_SALT_LENGTH));
+    const iv = crypto.getRandomValues(new Uint8Array(ENCRYPTION_IV_LENGTH));
+    
+    // Derive key using PBKDF2
+    const keyData = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(keyMaterial),
+      { name: 'PBKDF2' },
+      false,
+      ['deriveKey']
+    );
+    
+    const cryptoKey = await crypto.subtle.deriveKey(
+      {
+        name: 'PBKDF2',
+        salt: salt,
+        iterations: ENCRYPTION_ITERATIONS,
+        hash: 'SHA-256'
+      },
+      keyData,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['encrypt']
+    );
+    
+    // Encrypt the data
+    const encodedData = new TextEncoder().encode(JSON.stringify(data));
+    const encryptedContent = await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv },
+      cryptoKey,
+      encodedData
+    );
+    
+    // Combine the salt, IV, and encrypted data
+    const encryptedData = new Uint8Array(salt.length + iv.length + encryptedContent.byteLength);
+    encryptedData.set(salt, 0);
+    encryptedData.set(iv, salt.length);
+    encryptedData.set(new Uint8Array(encryptedContent), salt.length + iv.length);
+    
+    // Return as Base64 string
+    return btoa(String.fromCharCode.apply(null, encryptedData));
+  } catch (error) {
+    console.error('Encryption failed:', error);
+    throw error;
+  }
+}
+
+// Decrypt sensitive data
+async function decryptData(encryptedBase64) {
+  try {
+    const keyMaterial = await getEncryptionKey();
+    
+    // Convert from Base64 to byte array
+    const encryptedBytes = Uint8Array.from(atob(encryptedBase64), c => c.charCodeAt(0));
+    
+    // Extract salt, IV, and encrypted content
+    const salt = encryptedBytes.slice(0, ENCRYPTION_SALT_LENGTH);
+    const iv = encryptedBytes.slice(ENCRYPTION_SALT_LENGTH, ENCRYPTION_SALT_LENGTH + ENCRYPTION_IV_LENGTH);
+    const encryptedContent = encryptedBytes.slice(ENCRYPTION_SALT_LENGTH + ENCRYPTION_IV_LENGTH);
+    
+    // Derive key using PBKDF2
+    const keyData = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(keyMaterial),
+      { name: 'PBKDF2' },
+      false,
+      ['deriveKey']
+    );
+    
+    const cryptoKey = await crypto.subtle.deriveKey(
+      {
+        name: 'PBKDF2',
+        salt: salt,
+        iterations: ENCRYPTION_ITERATIONS,
+        hash: 'SHA-256'
+      },
+      keyData,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['decrypt']
+    );
+    
+    // Decrypt the data
+    const decryptedContent = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv },
+      cryptoKey,
+      encryptedContent
+    );
+    
+    // Parse and return the decrypted data
+    return JSON.parse(new TextDecoder().decode(decryptedContent));
+  } catch (error) {
+    console.error('Decryption failed:', error);
+    return null;
+  }
+}
+
 function isValidUrl(urlString) {
   try {
     const url = new URL(urlString);
@@ -216,18 +347,23 @@ async function verifyLicenseKey(licenseKey) {
     const data = await makeLicenseApiRequest('activate', licenseKey);
 
     if (data && data.success === true) {
+      // Encrypt the premium status before storing
+      const premiumStatus = {
+        active: true,
+        activatedOn: new Date().toISOString(),
+        licenseKey: licenseKey,
+        expiresOn: data.data?.expires_at || null,
+        timesActivated: data.data?.times_activated || 0,
+        timesActivatedMax: data.data?.times_activated_max || 1,
+        remainingActivations: data.data?.remaining_activations || 1,
+        lastVerified: new Date().toISOString()
+      };
+      
+      const encryptedStatus = await encryptData(premiumStatus);
+      
       await new Promise((resolve, reject) => {
         chrome.storage.sync.set({
-          'premiumStatus': {
-            active: true,
-            activatedOn: new Date().toISOString(),
-            licenseKey: licenseKey,
-            expiresOn: data.data?.expires_at || null,
-            timesActivated: data.data?.times_activated || 0,
-            timesActivatedMax: data.data?.times_activated_max || 1,
-            remainingActivations: data.data?.remaining_activations || 1,
-            lastVerified: new Date().toISOString()
-          }
+          'encryptedPremiumStatus': encryptedStatus
         }, () => {
           if (chrome.runtime.lastError) {
             reject(chrome.runtime.lastError);
@@ -243,14 +379,18 @@ async function verifyLicenseKey(licenseKey) {
         errorMessage = data.message;
       }
       
+      const premiumStatus = {
+        active: false,
+        licenseKey: licenseKey,
+        activationAttempted: new Date().toISOString(),
+        reason: errorMessage
+      };
+      
+      const encryptedStatus = await encryptData(premiumStatus);
+      
       await new Promise((resolve) => {
         chrome.storage.sync.set({
-          'premiumStatus': {
-            active: false,
-            licenseKey: licenseKey,
-            activationAttempted: new Date().toISOString(),
-            reason: errorMessage
-          }
+          'encryptedPremiumStatus': encryptedStatus
         }, resolve);
       });
       
@@ -271,22 +411,35 @@ async function refreshLicense(licenseKey) {
   try {
     const data = await makeLicenseApiRequest('validate', licenseKey);
     
-    const { premiumStatus } = await new Promise(resolve => {
-      chrome.storage.sync.get(['premiumStatus'], resolve);
+    // Get and decrypt current premium status
+    const encryptedStatus = await new Promise(resolve => {
+      chrome.storage.sync.get(['encryptedPremiumStatus'], result => {
+        resolve(result.encryptedPremiumStatus);
+      });
     });
     
+    let premiumStatus = null;
+    if (encryptedStatus) {
+      premiumStatus = await decryptData(encryptedStatus);
+    }
+    
     if (data && data.success === true) {
+      // Update and encrypt the premium status
+      const updatedStatus = {
+        active: true,
+        activatedOn: premiumStatus?.activatedOn || new Date().toISOString(),
+        licenseKey: licenseKey,
+        expiresOn: data.data?.expires_at || null,
+        lastVerified: new Date().toISOString(),
+        timesActivated: data.data?.times_activated || 1,
+        timesActivatedMax: data.data?.times_activated_max || null
+      };
+      
+      const newEncryptedStatus = await encryptData(updatedStatus);
+      
       await new Promise((resolve, reject) => {
         chrome.storage.sync.set({
-          'premiumStatus': {
-            active: true,
-            activatedOn: premiumStatus?.activatedOn || new Date().toISOString(),
-            licenseKey: licenseKey,
-            expiresOn: data.data?.expires_at || null,
-            lastVerified: new Date().toISOString(),
-            timesActivated: data.data?.times_activated || 1,
-            timesActivatedMax: data.data?.times_activated_max || null
-          }
+          'encryptedPremiumStatus': newEncryptedStatus
         }, () => {
           if (chrome.runtime.lastError) {
             reject(chrome.runtime.lastError);
@@ -301,14 +454,19 @@ async function refreshLicense(licenseKey) {
         errorMessage = data.message;
       }
       
+      // Update and encrypt the deactivated status
+      const deactivatedStatus = {
+        active: false,
+        licenseKey: licenseKey,
+        deactivatedOn: new Date().toISOString(),
+        reason: errorMessage
+      };
+      
+      const newEncryptedStatus = await encryptData(deactivatedStatus);
+      
       await new Promise((resolve, reject) => {
         chrome.storage.sync.set({
-          'premiumStatus': {
-            active: false,
-            licenseKey: licenseKey,
-            deactivatedOn: new Date().toISOString(),
-            reason: errorMessage
-          }
+          'encryptedPremiumStatus': newEncryptedStatus
         }, () => {
           if (chrome.runtime.lastError) {
             reject(chrome.runtime.lastError);
@@ -319,11 +477,19 @@ async function refreshLicense(licenseKey) {
       });
     }
     
+    // Get the updated encrypted status
+    const newEncryptedStatus = await new Promise(resolve => {
+      chrome.storage.sync.get(['encryptedPremiumStatus'], result => {
+        resolve(result.encryptedPremiumStatus);
+      });
+    });
+    
+    // Decrypt for sending in response
+    const decryptedStatus = await decryptData(newEncryptedStatus);
+    
     return {
       apiResponse: data,
-      updatedStatus: await new Promise(resolve => {
-        chrome.storage.sync.get(['premiumStatus'], resolve);
-      })
+      updatedStatus: { premiumStatus: decryptedStatus }
     };
   } catch (error) {
     console.error('License refresh error:', error);
@@ -341,7 +507,7 @@ async function deactivateLicense(licenseKey) {
     const data = await makeLicenseApiRequest('deactivate', licenseKey);
     
     await new Promise((resolve) => {
-      chrome.storage.sync.remove(['premiumStatus'], resolve);
+      chrome.storage.sync.remove(['encryptedPremiumStatus'], resolve);
     });
     
     return {
@@ -352,7 +518,7 @@ async function deactivateLicense(licenseKey) {
     console.error('License deactivation error:', error);
     
     await new Promise((resolve) => {
-      chrome.storage.sync.remove(['premiumStatus'], resolve);
+      chrome.storage.sync.remove(['encryptedPremiumStatus'], resolve);
     });
     
     return {
@@ -367,9 +533,19 @@ async function deactivateLicense(licenseKey) {
  * @returns {Promise<Object>} The current license information
  */
 async function getLicenseInfo() {
-  return new Promise((resolve) => {
-    chrome.storage.sync.get(['premiumStatus'], (result) => {
-      resolve(result.premiumStatus || { active: false });
+  return new Promise(async (resolve) => {
+    chrome.storage.sync.get(['encryptedPremiumStatus'], async (result) => {
+      if (result.encryptedPremiumStatus) {
+        try {
+          const decryptedStatus = await decryptData(result.encryptedPremiumStatus);
+          resolve(decryptedStatus || { active: false });
+        } catch (error) {
+          console.error('Failed to decrypt license info:', error);
+          resolve({ active: false, error: 'Decryption failed' });
+        }
+      } else {
+        resolve({ active: false });
+      }
     });
   });
 }
