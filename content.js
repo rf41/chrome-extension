@@ -14,7 +14,7 @@ function getCurrentDomain() {
 }
 
 /**
- * Check if domains match (handles subdomains and wildcards)
+ * Check if domains match (handles subdomains, wildcards, and www prefix)
  * @param {string} targetDomain - Domain pattern to check
  * @param {string} currentDomain - Current domain
  * @returns {boolean} Whether domains match
@@ -22,14 +22,17 @@ function getCurrentDomain() {
 function isDomainMatch(targetDomain, currentDomain) {
   if (!targetDomain || !currentDomain) return false;
 
-  const pattern = targetDomain.toLowerCase();
-  const domain = currentDomain.toLowerCase();
+  // Normalize domains by removing www. prefix
+  const normalizedTarget = targetDomain.toLowerCase().replace(/^www\./, '');
+  const normalizedCurrent = currentDomain.toLowerCase().replace(/^www\./, '');
   
-  if (pattern === domain) return true;
+  // Direct match after normalization
+  if (normalizedTarget === normalizedCurrent) return true;
   
-  if (pattern.startsWith('*.')) {
-    const baseDomain = pattern.substring(2);
-    return domain === baseDomain || domain.endsWith('.' + baseDomain);
+  // Handle wildcard patterns
+  if (targetDomain.startsWith('*.')) {
+    const baseDomain = targetDomain.substring(2).replace(/^www\./, '');
+    return normalizedCurrent === baseDomain || normalizedCurrent.endsWith('.' + baseDomain);
   }
   
   return false;

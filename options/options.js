@@ -221,7 +221,8 @@ function processFormSubmission(title, url, commandId, isUpdate, editIndex) {
 
   let currentDomain;
   try {
-    currentDomain = new URL(url).hostname;
+    // Extract domain and remove 'www.' prefix
+    currentDomain = new URL(url).hostname.replace(/^www\./, '');
   } catch (e) {
     customStatus.textContent = "Invalid URL format";
     customStatus.style.color = "red";
@@ -754,7 +755,8 @@ function editShortcut(index) {
     
     let domain = '';
     try {
-      domain = new URL(shortcut.url).hostname;
+      // Extract domain and remove 'www.' prefix
+      domain = new URL(shortcut.url).hostname.replace(/^www\./, '');
     } catch (e) {
       console.error('Invalid URL', e);
     }
@@ -893,10 +895,11 @@ function initDomainAutoUpdate() {
     }
     
     try {
-      return new URL(url).hostname;
+      // Extract domain and remove 'www.' prefix
+      return new URL(url).hostname.replace(/^www\./, '');
     } catch (e) {
       const domainMatch = url.match(/[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}/);
-      return domainMatch ? domainMatch[0] : '';
+      return domainMatch ? domainMatch[0].replace(/^www\./, '') : '';
     }
   };
   
