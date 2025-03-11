@@ -101,7 +101,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   displayPremiumStatus();
   initializeUI();
-  setTimeout(debugCommands, 1000);
   loadData();
   initCollapsibleSections();
   addLicenseManagementSection();
@@ -971,24 +970,6 @@ function createDomainRestrictionInfo() {
   }
 }
 
-function debugCommands() {
-  console.log("AVAILABLE_COMMANDS:", AVAILABLE_COMMANDS);
-  
-  chrome.storage.sync.get(['customShortcuts'], (result) => {
-    console.log("Current shortcuts:", result.customShortcuts || []);
-  });
-  
-  const dropdown = document.getElementById('commandIdSelect');
-  if (dropdown) {
-    console.log("Dropdown options:", dropdown.options.length);
-    for (let i = 0; i < dropdown.options.length; i++) {
-      console.log(`Option ${i}:`, dropdown.options[i].value);
-    }
-  } else {
-    console.log("Dropdown not found");
-  }
-}
-
 function initGuideButton() {
   const guideBtn = document.getElementById('shortcutGuideBtn');
   if (guideBtn) {
@@ -1249,58 +1230,6 @@ function verifyLicenseKey(licenseKey) {
   );
 }
 
-function refreshLicense() {
-  chrome.storage.sync.get(['premiumStatus'], (result) => {
-    const premiumData = result.premiumStatus || {};
-    const licenseKey = premiumData.licenseKey;
-    
-    if (!licenseKey) {
-      customStatus.innerHTML = `<div style="color: red;">No license key found. Please add a license first.</div>`;
-      return;
-    }
-    
-    customStatus.innerHTML = `<div style="color: blue;">Refreshing license status...</div>`;
-    
-    chrome.runtime.sendMessage(
-      {action: "refreshLicense", licenseKey: licenseKey},
-      (response) => {
-        if (chrome.runtime.lastError || !response || !response.success) {
-          const errorMsg = chrome.runtime.lastError?.message || response?.error || 'Unknown error';
-          console.error('License refresh error:', errorMsg);
-          customStatus.innerHTML = '<div style="color: red;">Error connecting to license server. Please try again later.</div>';
-          setTimeout(() => {
-            customStatus.textContent = "";
-          }, 4000);
-          return;
-        }
-        
-        const { apiResponse, updatedStatus } = response.data;
-        
-        if (apiResponse && apiResponse.success === true) {
-          isPremiumUser = true;
-          updateLicenseDetails();
-          displayPremiumStatus();
-          
-          customStatus.innerHTML = `<div style="color: green;">License refreshed successfully!</div>`;
-          setTimeout(() => {
-            customStatus.textContent = "";
-          }, 4000);
-        } else {
-          isPremiumUser = false;
-          updateLicenseDetails();
-          displayPremiumStatus();
-          loadCustomShortcuts();
-          
-          customStatus.innerHTML = `<div style="color: red;">License is no longer valid: ${apiResponse?.message || 'Please renew your license.'}</div>`;
-          setTimeout(() => {
-            customStatus.textContent = "";
-          }, 5000);
-        }
-      }
-    );
-  });
-}
-
 function deactivateLicense() {
   if (!confirm('Are you sure you want to deactivate your premium license? This will revert you to the free version with limited features.')) {
     return;
@@ -1343,6 +1272,7 @@ function deactivateLicense() {
     }
     
     const licenseKey = response.data.licenseKey;
+    const token = response.data.token || ''; // Include token in deactivation
     
     if (!licenseKey) {
       removeLicenseLocally('No license key found. License deactivated locally.', 'orange');
@@ -1350,7 +1280,11 @@ function deactivateLicense() {
     }
     
     chrome.runtime.sendMessage(
-      {action: "deactivateLicense", licenseKey: licenseKey},
+      {
+        action: "deactivateLicense", 
+        licenseKey: licenseKey,
+        token: token // Send token with the deactivation request
+      },
       (response) => {
         if (chrome.runtime.lastError) {
           console.error('License deactivation error:', chrome.runtime.lastError);
@@ -1456,14 +1390,18 @@ function updateLicenseDetails() {
       const activationInfo = premiumData.timesActivatedMax ? 
         `<p><strong>Activations:</strong> ${premiumData.timesActivated || 1} / ${premiumData.timesActivatedMax}</p>` : '';
       
+      // Add token info as a hidden field (for security)
+      const tokenInfo = premiumData.token;
+      
       licenseDetails.innerHTML = `
         <div class="license-active">
           <p><strong>Status:</strong> <span style="color: green;">Active</span></p>
           <p><strong>License Key:</strong> ${maskLicenseKey(premiumData.licenseKey || 'Unknown')}</p>
-          <p><strong>Activated On:</strong> ${activatedDate}</p>
+          <p><strong>Activated On:</strong> ${activatedDate}</p> 
           ${expiryInfo}
           ${activationInfo}
           ${lastVerifiedInfo}
+          ${tokenInfo}
         </div>
       `;
       

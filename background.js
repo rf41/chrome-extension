@@ -290,9 +290,10 @@ const LICENSE_API_CONFIG = {
  * Make a request to the license API middleware
  * @param {string} action - The API action (activate, validate, deactivate)
  * @param {string} licenseKey - The license key
+ * @param {string} [token] - Optional token from the activated license
  * @returns {Promise<Object>} The API response
  */
-async function makeLicenseApiRequest(action, licenseKey) {
+async function makeLicenseApiRequest(action, licenseKey, token) {
   if (!action || !licenseKey) {
     throw new Error('Action and license key are required');
   }
@@ -301,8 +302,13 @@ async function makeLicenseApiRequest(action, licenseKey) {
   const params = new URLSearchParams({
     action: action,
     license_key: licenseKey,
-    instance: chrome.runtime.id
+    extension_id: chrome.runtime.id
   });
+  
+  // Add token if available (for deactivation)
+  if (token) {
+    params.append('token', token);
+  }
   
   const response = await fetch(`${url}?${params.toString()}`, {
     method: 'GET',
@@ -392,14 +398,6 @@ function isValidLicenseResponse(data) {
   // If there's no data property at all, it's not valid
   if (!data) return false;
   
-  console.debug('License response structure:', JSON.stringify({
-    hasSuccess: data.success,
-    hasDataObject: !!data.data,
-    hasNestedSuccess: data.data && data.data.success,
-    hasDoubleNestedData: data.data && data.data.data,
-    responseKeys: Object.keys(data)
-  }));
-  
   // Check for error patterns at various depths
   if (data.errors) return false;
   if (data.data && data.data.errors) return false;
@@ -418,7 +416,6 @@ function isValidLicenseResponse(data) {
     if (licenseData.id && 
         licenseData.licenseKey && 
         licenseData.status !== undefined) {
-      console.debug('Found valid license data in nested structure');
       return true;
     }
   }
@@ -426,7 +423,6 @@ function isValidLicenseResponse(data) {
   // Special case for validation responses - may be structured differently
   if (data.success === true && data.data && data.data.success === true) {
     // For validation responses, this might be enough to indicate success
-    console.debug('Found success validation response structure');
     return true;
   }
   
@@ -458,26 +454,15 @@ function isValidLicenseResponse(data) {
  * @returns {Object} - The extracted license details
  */
 function extractLicenseDetails(data) {
-  // Case 1: Double nested structure (data.data.data)
   if (data.data && data.data.data && data.data.data.licenseKey) {
-    console.debug('Extracting license details from doubly nested structure');
     return data.data.data;
   }
-  
-  // Case 2: Single nested structure (data.data)
   if (data.data && data.data.licenseKey) {
-    console.debug('Extracting license details from singly nested structure');
     return data.data;
   }
-  
-  // Case 3: Direct structure
   if (data.licenseKey) {
-    console.debug('Extracting license details from direct structure');
     return data;
   }
-  
-  // Default: return empty object if no recognizable structure found
-  console.warn('No recognizable license structure found');
   return {};
 }
 
@@ -488,24 +473,40 @@ function extractLicenseDetails(data) {
  */
 async function verifyLicenseKey(licenseKey) {
   try {
-    console.debug('Activating license:', licenseKey);
     const data = await makeLicenseApiRequest('activate', licenseKey);
-    console.debug('License activation response:', JSON.stringify(data));
     
     // Detailed validation of the license response
     const isSuccessful = isValidLicenseResponse(data);
-    console.debug('License validation result:', isSuccessful);
     
     if (isSuccessful) {
       // Extract license details from the appropriate location in the response
       const licenseDetails = extractLicenseDetails(data);
-      console.debug('Extracted license details:', JSON.stringify(licenseDetails));
+      
+      // Extract token from the activationData object in the nested response
+      let token = '';
+      
+      // First check if the token is directly available
+      if (data.token) {
+        token = data.token;
+      } 
+      // Check if token is in the nested data structure
+      else if (data.data && data.data.data && data.data.data.activationData && data.data.data.activationData.token) {
+        token = data.data.data.activationData.token;
+      }
+      // Check if licenseDetails has the token or activationData
+      else if (licenseDetails.token) {
+        token = licenseDetails.token;
+      }
+      else if (licenseDetails.activationData && licenseDetails.activationData.token) {
+        token = licenseDetails.activationData.token;
+      }
       
       // Encrypt the premium status before storing
       const premiumStatus = {
         active: true,
         activatedOn: new Date().toISOString(),
         licenseKey: licenseKey,
+        token: token,  // Store the extracted token
         expiresOn: licenseDetails.expiresAt || null,
         timesActivated: licenseDetails.timesActivated || 1,
         timesActivatedMax: licenseDetails.timesActivatedMax || 1,
@@ -515,7 +516,6 @@ async function verifyLicenseKey(licenseKey) {
             : 0,
         lastVerified: new Date().toISOString(),
         licenseId: licenseDetails.id || null,
-        responseData: data, // Store full response for debugging
         responseStructure: {
           hasSuccess: data.success,
           hasDataObject: !!data.data,
@@ -548,7 +548,6 @@ async function verifyLicenseKey(licenseKey) {
         licenseKey: licenseKey,
         activationAttempted: new Date().toISOString(),
         reason: errorMessage,
-        responseData: data // Store full response for debugging
       };
       
       const encryptedStatus = await encryptData(premiumStatus);
@@ -570,11 +569,12 @@ async function verifyLicenseKey(licenseKey) {
 /**
  * Deactivate a license with the API
  * @param {string} licenseKey - The license key to deactivate
+ * @param {string} [token] - Optional token from the activated license
  * @returns {Promise<Object>} The API response with local deactivation status
  */
-async function deactivateLicense(licenseKey) {
+async function deactivateLicense(licenseKey, token) {
   try {
-    const data = await makeLicenseApiRequest('deactivate', licenseKey);
+    const data = await makeLicenseApiRequest('deactivate', licenseKey, token);
     
     await new Promise((resolve) => {
       chrome.storage.sync.remove(['encryptedPremiumStatus'], resolve);
@@ -713,7 +713,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true;
 
     case "deactivateLicense":
-      deactivateLicense(message.licenseKey)
+      deactivateLicense(message.licenseKey, message.token)
         .then(data => sendResponse({ success: true, data }))
         .catch(error => sendResponse({ success: false, error: error.message }));
       return true;
