@@ -279,7 +279,7 @@ chrome.commands.onCommand.addListener(async (command) => {
 const LICENSE_API_CONFIG = {
   baseUrl: 'https://ridwancard.my.id',
   endpoints: {
-    middleware: '/v1/api.php',
+    middleware: '/v1/api',
     activate: '?action=activate',
     validate: '?action=validate',
     deactivate: '?action=deactivate'
