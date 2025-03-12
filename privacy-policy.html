@@ -6,7 +6,7 @@
     <title>Privacy Policy - Smart Shortcut Panel</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Arial, sans-serif;
             line-height: 1.6;
             max-width: 800px;
             margin: 0 auto;
@@ -36,11 +36,21 @@
             padding-top: 20px;
             font-style: italic;
         }
+        ul li {
+            margin-bottom: 8px;
+        }
+        a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
     <h1>Privacy Policy for Smart Shortcut Panel</h1>
-    <p class="last-updated">Last Updated: March 8, 2025</p>
+    <p class="last-updated">Last Updated: April 15, 2024</p>
 
     <h2>Introduction</h2>
     <p>
@@ -57,9 +67,10 @@
         The Smart Shortcut Panel extension stores the following information locally on your device:
     </p>
     <ul>
-        <li><strong>Website shortcuts</strong>: URLs, labels, and hotkeys you configure for specific domains</li>
+        <li><strong>Website shortcuts</strong>: URLs, labels, icons, and hotkeys you configure for specific domains</li>
         <li><strong>License information</strong>: Your license key and activation status</li>
-        <li><strong>Extension preferences</strong>: Your configuration settings for the extension</li>
+        <li><strong>Extension preferences</strong>: Your configuration settings for the extension including panel position, visibility options, and appearance settings</li>
+        <li><strong>Domain-specific settings</strong>: Any customizations you've made for specific websites</li>
     </ul>
     <p>
         This data is stored using Chrome's <code>storage.sync</code> and <code>storage.local</code> APIs, which means:
@@ -77,6 +88,7 @@
         <li><strong>License key</strong>: When you enter a license key for validation</li>
         <li><strong>Device identifier</strong>: A randomly generated identifier used to track the number of devices using your license</li>
         <li><strong>Version information</strong>: The current version of the extension</li>
+        <li><strong>Browser information</strong>: Basic information about your browser environment for compatibility purposes</li>
     </ul>
 
     <h2>How We Use Information</h2>
@@ -89,11 +101,12 @@
         <li>Validate the authenticity of your license key</li>
         <li>Ensure compliance with our license terms (such as device limits)</li>
         <li>Provide premium features to licensed users</li>
+        <li>Improve compatibility with different browser environments</li>
     </ul>
 
     <h3>Analytics and Error Reporting</h3>
     <p>
-        We do not collect usage analytics or error reports from the extension.
+        We do not collect usage analytics or error reports from the extension unless you explicitly opt in to help improve our service. If you choose to participate in our improvement program, we may collect anonymous usage statistics and error logs to enhance the extension's functionality.
     </p>
 
     <h2>Data Retention and Security</h2>
@@ -101,6 +114,7 @@
         <li><strong>Local data</strong>: All locally stored data remains on your device and can be cleared by uninstalling the extension</li>
         <li><strong>License verification data</strong>: License verification data is stored securely on our servers for the duration of your license</li>
         <li><strong>Security measures</strong>: We employ industry-standard security measures to protect any data transmitted to our servers</li>
+        <li><strong>Data encryption</strong>: All communications with our servers are encrypted using HTTPS</li>
     </ul>
 
     <h2>Third-Party Access</h2>
@@ -115,8 +129,10 @@
     </p>
     <ul>
         <li>Access and modify your stored shortcuts through the extension's options page</li>
+        <li>Export and import your configuration data for backup purposes</li>
         <li>Delete your stored data by uninstalling the extension</li>
         <li>Request deletion of your license information by contacting us</li>
+        <li>Opt out of any optional data collection features</li>
     </ul>
 
     <h2>Changes to This Privacy Policy</h2>
@@ -140,7 +156,7 @@
     </p>
 
     <div class="footer">
-        <p>This privacy policy was generated based on the functionality present in the extension code as of March 8, 2025.</p>
+        <p>This privacy policy was generated based on the functionality present in the extension code as of April 15, 2024.</p>
     </div>
 </body>
 </html>
