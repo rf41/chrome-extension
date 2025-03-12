@@ -5,26 +5,21 @@
 
 const DEFAULT_URL = "chrome://newtab";
 
-// Add encryption utilities
 const ENCRYPTION_KEY_STORAGE_NAME = 'secure_storage_key';
 const ENCRYPTION_IV_LENGTH = 12;
 const ENCRYPTION_SALT_LENGTH = 16;
 const ENCRYPTION_ITERATIONS = 100000;
 
-// Generate a secure encryption key or retrieve existing one
 async function getEncryptionKey() {
   return new Promise((resolve) => {
     chrome.storage.local.get([ENCRYPTION_KEY_STORAGE_NAME], async (result) => {
       if (result[ENCRYPTION_KEY_STORAGE_NAME]) {
-        // Key exists, use it
         resolve(result[ENCRYPTION_KEY_STORAGE_NAME]);
       } else {
-        // Generate a new encryption key (32 random bytes encoded as base64)
         const keyArray = new Uint8Array(32);
         crypto.getRandomValues(keyArray);
         const newKey = btoa(String.fromCharCode.apply(null, keyArray));
         
-        // Store the key and return it
         chrome.storage.local.set({ [ENCRYPTION_KEY_STORAGE_NAME]: newKey }, () => {
           resolve(newKey);
         });
@@ -33,16 +28,13 @@ async function getEncryptionKey() {
   });
 }
 
-// Encrypt sensitive data
 async function encryptData(data) {
   try {
     const keyMaterial = await getEncryptionKey();
     
-    // Create salt and IV
     const salt = crypto.getRandomValues(new Uint8Array(ENCRYPTION_SALT_LENGTH));
     const iv = crypto.getRandomValues(new Uint8Array(ENCRYPTION_IV_LENGTH));
     
-    // Derive key using PBKDF2
     const keyData = await crypto.subtle.importKey(
       'raw',
       new TextEncoder().encode(keyMaterial),
@@ -64,7 +56,6 @@ async function encryptData(data) {
       ['encrypt']
     );
     
-    // Encrypt the data
     const encodedData = new TextEncoder().encode(JSON.stringify(data));
     const encryptedContent = await crypto.subtle.encrypt(
       { name: 'AES-GCM', iv },
@@ -72,13 +63,11 @@ async function encryptData(data) {
       encodedData
     );
     
-    // Combine the salt, IV, and encrypted data
     const encryptedData = new Uint8Array(salt.length + iv.length + encryptedContent.byteLength);
     encryptedData.set(salt, 0);
     encryptedData.set(iv, salt.length);
     encryptedData.set(new Uint8Array(encryptedContent), salt.length + iv.length);
     
-    // Return as Base64 string
     return btoa(String.fromCharCode.apply(null, encryptedData));
   } catch (error) {
     console.error('Encryption failed:', error);
@@ -86,20 +75,16 @@ async function encryptData(data) {
   }
 }
 
-// Decrypt sensitive data
 async function decryptData(encryptedBase64) {
   try {
     const keyMaterial = await getEncryptionKey();
     
-    // Convert from Base64 to byte array
     const encryptedBytes = Uint8Array.from(atob(encryptedBase64), c => c.charCodeAt(0));
     
-    // Extract salt, IV, and encrypted content
     const salt = encryptedBytes.slice(0, ENCRYPTION_SALT_LENGTH);
     const iv = encryptedBytes.slice(ENCRYPTION_SALT_LENGTH, ENCRYPTION_SALT_LENGTH + ENCRYPTION_IV_LENGTH);
     const encryptedContent = encryptedBytes.slice(ENCRYPTION_SALT_LENGTH + ENCRYPTION_IV_LENGTH);
     
-    // Derive key using PBKDF2
     const keyData = await crypto.subtle.importKey(
       'raw',
       new TextEncoder().encode(keyMaterial),
@@ -121,14 +106,12 @@ async function decryptData(encryptedBase64) {
       ['decrypt']
     );
     
-    // Decrypt the data
     const decryptedContent = await crypto.subtle.decrypt(
       { name: 'AES-GCM', iv },
       cryptoKey,
       encryptedContent
     );
     
-    // Parse and return the decrypted data
     return JSON.parse(new TextDecoder().decode(decryptedContent));
   } catch (error) {
     console.error('Decryption failed:', error);
@@ -275,7 +258,6 @@ chrome.commands.onCommand.addListener(async (command) => {
   }
 });
 
-// Centralized License API Configuration and Functions
 const LICENSE_API_CONFIG = {
   baseUrl: 'https://ridwancard.my.id',
   endpoints: {
@@ -300,14 +282,12 @@ async function makeLicenseApiRequest(action, licenseKey, token) {
 
   const url = `${LICENSE_API_CONFIG.baseUrl}${LICENSE_API_CONFIG.endpoints.middleware}`;
   
-  // Set up the base parameters
   const params = new URLSearchParams({
     action: action,
     license_key: licenseKey,
     extension_id: chrome.runtime.id
   });
   
-  // For deactivation, format parameters differently with token
   if (action === 'deactivate' && token) {
     params.append('token', token);
   }
@@ -351,16 +331,13 @@ async function makeLicenseApiRequest(action, licenseKey, token) {
  * @returns {string|null} - Error message or null if no errors found
  */
 function extractErrorMessage(data) {
-  // Handle deeply nested errors (up to 3 levels)
   if (data && data.data) {
-    // First level - direct errors in data.data.errors
     if (data.data.errors) {
       const errors = data.data.errors;
       if (errors.lmfwc_rest_data_error && errors.lmfwc_rest_data_error.length > 0) {
         return errors.lmfwc_rest_data_error.join(', ');
       }
       
-      // Extract first error from any error property
       for (const key in errors) {
         if (Array.isArray(errors[key]) && errors[key].length > 0) {
           return errors[key].join(', ');
@@ -368,7 +345,6 @@ function extractErrorMessage(data) {
       }
     }
     
-    // Second level - errors in data.data.data.errors
     if (data.data.data && data.data.data.errors) {
       const errors = data.data.data.errors;
       if (errors.lmfwc_rest_data_error && errors.lmfwc_rest_data_error.length > 0) {
@@ -383,7 +359,6 @@ function extractErrorMessage(data) {
     }
   }
   
-  // Check for direct error message
   if (data.message) {
     return data.message;
   }
@@ -400,13 +375,10 @@ function isValidLicenseResponse(data) {
   // If there's no data property at all, it's not valid
   if (!data) return false;
   
-  // Check for error patterns at various depths
   if (data.errors) return false;
   if (data.data && data.data.errors) return false;
   if (data.data && data.data.data && data.data.data.errors) return false;
   
-  // Special case: Handle the doubly nested response structure
-  // where license data is in data.data.data
   if (data.success === true && 
       data.data && 
       data.data.success === true && 
@@ -414,7 +386,6 @@ function isValidLicenseResponse(data) {
     
     const licenseData = data.data.data;
     
-    // Check if it has key license attributes
     if (licenseData.id && 
         licenseData.licenseKey && 
         licenseData.status !== undefined) {
@@ -422,18 +393,15 @@ function isValidLicenseResponse(data) {
     }
   }
   
-  // Special case for validation responses - may be structured differently
   if (data.success === true && data.data && data.data.success === true) {
     // For validation responses, this might be enough to indicate success
     return true;
   }
   
-  // Check for presence of license key in standard locations
   const hasLicenseKey = (data.licenseKey) || 
                        (data.data && data.data.licenseKey) ||
                        (data.data && data.data.data && data.data.data.licenseKey);
   
-  // Check for valid license data in standard locations
   if (data.data) {
     if (typeof data.data.id === 'number' && 
         data.data.licenseKey && 
@@ -446,7 +414,6 @@ function isValidLicenseResponse(data) {
     }
   }
   
-  // If we have license key and no errors, consider it valid
   return hasLicenseKey && data.success === true;
 }
 
@@ -477,25 +444,19 @@ async function verifyLicenseKey(licenseKey) {
   try {
     const data = await makeLicenseApiRequest('activate', licenseKey);
     
-    // Detailed validation of the license response
     const isSuccessful = isValidLicenseResponse(data);
     
     if (isSuccessful) {
-      // Extract license details from the appropriate location in the response
       const licenseDetails = extractLicenseDetails(data);
       
-      // Extract token from the activationData object in the nested response
       let token = '';
       
-      // First check if the token is directly available
       if (data.token) {
         token = data.token;
       } 
-      // Check if token is in the nested data structure
       else if (data.data && data.data.data && data.data.data.activationData && data.data.data.activationData.token) {
         token = data.data.data.activationData.token;
       }
-      // Check if licenseDetails has the token or activationData
       else if (licenseDetails.token) {
         token = licenseDetails.token;
       }
@@ -503,12 +464,11 @@ async function verifyLicenseKey(licenseKey) {
         token = licenseDetails.activationData.token;
       }
       
-      // Encrypt the premium status before storing
       const premiumStatus = {
         active: true,
         activatedOn: new Date().toISOString(),
         licenseKey: licenseKey,
-        token: token,  // Store the extracted token
+        token: token,
         expiresOn: licenseDetails.expiresAt || null,
         timesActivated: licenseDetails.timesActivated || 1,
         timesActivatedMax: licenseDetails.timesActivatedMax || 1,
@@ -541,7 +501,6 @@ async function verifyLicenseKey(licenseKey) {
       });
       return data;
     } else {
-      // Extract error message from response
       let errorMessage = extractErrorMessage(data) || 'License verification failed';
       console.error('License activation failed:', errorMessage);
       

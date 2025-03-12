@@ -186,7 +186,6 @@ if (shortcutForm) {
       url = 'https://' + url;
     }
 
-    // Directly process form submission without unnecessary runtime message
     processFormSubmission(title, url, commandId, isUpdate, editIndex);
   });
 }
@@ -220,7 +219,6 @@ function processFormSubmission(title, url, commandId, isUpdate, editIndex) {
 
   let currentDomain;
   try {
-    // Extract domain and remove 'www.' prefix
     currentDomain = new URL(url).hostname.replace(/^www\./, '');
   } catch (e) {
     customStatus.textContent = "Invalid URL format";
@@ -232,7 +230,6 @@ function processFormSubmission(title, url, commandId, isUpdate, editIndex) {
   let domains = [];
 
   if (domainTargeting) {
-    // Ensure the domain is set correctly
     domainTargeting.value = currentDomain;
     domains = [currentDomain];
   }
@@ -240,7 +237,6 @@ function processFormSubmission(title, url, commandId, isUpdate, editIndex) {
   chrome.storage.sync.get(['customShortcuts'], (result) => {
     let shortcuts = result.customShortcuts || [];
     
-    // Count shortcuts for the current domain, excluding the one being edited
     const domainShortcutsCount = shortcuts.filter((s, idx) => {
       if (isUpdate && idx === editIndex) return false;
       return s.domains && s.domains.includes(currentDomain);
@@ -268,7 +264,6 @@ function processFormSubmission(title, url, commandId, isUpdate, editIndex) {
     }
 
     if (isUpdate && !isNaN(editIndex) && editIndex >= 0 && editIndex < shortcuts.length) {
-      // Validate commandId - ensure it's not already used by another shortcut
       if (commandId && commandId !== shortcuts[editIndex].command) {
         const commandExists = shortcuts.some((s, i) => i !== editIndex && s.command === commandId);
         if (commandExists) {
@@ -277,8 +272,6 @@ function processFormSubmission(title, url, commandId, isUpdate, editIndex) {
           return;
         }
       }
-
-      // Update the existing shortcut
       shortcuts[editIndex].command = commandId;
       shortcuts[editIndex].title = title;
       shortcuts[editIndex].url = url;
@@ -297,14 +290,12 @@ function processFormSubmission(title, url, commandId, isUpdate, editIndex) {
         }, 2000);
       });
     } else {
-      // Check if command ID already exists when adding a new shortcut
       if (commandId && commandId !== '' && shortcuts.some(s => s.command === commandId)) {
         customStatus.textContent = `Command ID "${commandId}" already exists. Please choose a different one.`; 
         customStatus.style.color = "red";
         return;
       }
       
-      // Add a new shortcut
       shortcuts.push({
         command: commandId || "", 
         title: title,
@@ -435,7 +426,6 @@ function loadCustomShortcuts(sortColumn = 'domain', sortDirection = 'asc') {
         const row = document.createElement('tr');
         const originalIndex = shortcut._originalIndex;
         
-        // Function to create truncated cell content with title attribute
         const truncateText = (text, maxLength = 50) => {
           if (!text) return '';
           const displayText = text.length > maxLength ? 
@@ -444,7 +434,6 @@ function loadCustomShortcuts(sortColumn = 'domain', sortDirection = 'asc') {
           return `<div class="truncate-cell" title="${escapeHtml(text)}">${escapeHtml(displayText)}</div>`;
         };
         
-        // Escape HTML to prevent XSS when using title attribute
         const escapeHtml = (unsafe) => {
           return unsafe
             .replace(/&/g, "&amp;")
@@ -536,7 +525,6 @@ function updateShortcutDisplayTable() {
         if (shortcutMap[command.name]) {
           const shortcutElem = document.querySelector(`[data-command-id="${command.name}"] .shortcut-binding`);
           if (shortcutElem) {
-            // Display the actual shortcut if set, otherwise show "Set here"
             if (command.shortcut) {
               shortcutElem.textContent = command.shortcut;
               shortcutElem.style.color = 'blue';
@@ -750,7 +738,6 @@ function editShortcut(index) {
     
     let domain = '';
     try {
-      // Extract domain and remove 'www.' prefix
       domain = new URL(shortcut.url).hostname.replace(/^www\./, '');
     } catch (e) {
       console.error('Invalid URL', e);
@@ -767,12 +754,10 @@ function editShortcut(index) {
       commandIdSelect.innerHTML = '';
       commandIdSelect.appendChild(new Option('None (Optional)', ''));
 
-      // Store all used command IDs except the one being edited
       const usedCommandIds = shortcuts
         .filter((s, i) => i !== index && s.command)
         .map(s => s.command);
 
-      // Add available command options including the one currently assigned to this shortcut
       AVAILABLE_COMMANDS.forEach(cmd => {
         if (!usedCommandIds.includes(cmd) || shortcut.command === cmd) {
           const option = new Option(cmd, cmd);
@@ -826,7 +811,6 @@ function resetShortcutForm() {
     domainTargetingInput.setAttribute('readonly', 'readonly');
   }
 
-  // Properly refresh command ID dropdown
   prepareCommandDropdown();
   
   const addBtn = document.getElementById('addBtn');
@@ -890,7 +874,6 @@ function initDomainAutoUpdate() {
     }
     
     try {
-      // Extract domain and remove 'www.' prefix
       return new URL(url).hostname.replace(/^www\./, '');
     } catch (e) {
       const domainMatch = url.match(/[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}/);
@@ -1231,7 +1214,6 @@ function deactivateLicense() {
     return;
   }
   
-  // Create or get status message container below the deactivate button
   const licenseActionButtons = document.getElementById('licenseActionButtons');
   let deactivateStatusMessage = document.getElementById('deactivateStatusMessage');
   
@@ -1242,10 +1224,8 @@ function deactivateLicense() {
     licenseActionButtons.parentNode.insertBefore(deactivateStatusMessage, licenseActionButtons.nextSibling);
   }
   
-  // Display initial status message
   showDeactivateMessage('Deactivating license...', 'blue');
   
-  // Disable the deactivate button to prevent multiple clicks
   const deactivateBtn = document.getElementById('deactivateLicenseBtn');
   if (deactivateBtn) {
     deactivateBtn.disabled = true;
@@ -1253,11 +1233,9 @@ function deactivateLicense() {
     deactivateBtn.textContent = 'Deactivating...';
   }
   
-  // Get the token directly from the hidden input if possible
   const tokenInput = document.getElementById('licenseToken');
   let tokenFromInput = tokenInput ? tokenInput.value : '';
   
-  // Use getLicenseInfo to properly retrieve the encrypted premium status
   chrome.runtime.sendMessage({action: "getLicenseInfo"}, (response) => {
     if (chrome.runtime.lastError) {
       console.error('License info retrieval error:', chrome.runtime.lastError);
@@ -1272,7 +1250,6 @@ function deactivateLicense() {
     }
     
     const licenseKey = response.data.licenseKey;
-    // Use token from input field first, fall back to response data
     const token = tokenFromInput || response.data.token || '';
     
     if (!licenseKey) {
@@ -1312,7 +1289,6 @@ function deactivateLicense() {
         if (localDeactivation) {
           isPremiumUser = false;
           showDeactivateMessage(message, 'orange');
-          // Force a full page reload to ensure all UI elements update correctly
           setTimeout(() => window.location.reload(), 1500);
         } else {
           removeLicenseLocally(message, 'orange');
@@ -1321,7 +1297,6 @@ function deactivateLicense() {
     );
   });
   
-  // Show message in the dedicated deactivate status container
   function showDeactivateMessage(message, color) {
     if (deactivateStatusMessage) {
       deactivateStatusMessage.innerHTML = `<div style="color: ${color}; margin-top: 10px;">${message}</div>`;
@@ -1332,14 +1307,12 @@ function deactivateLicense() {
     isPremiumUser = false;
     showDeactivateMessage(message, color);
     
-    // Re-enable button (though page will reload soon)
     if (deactivateBtn) {
       deactivateBtn.disabled = false;
       deactivateBtn.style.opacity = '1';
       deactivateBtn.textContent = 'Deactivate License';
     }
     
-    // Force a full page reload to ensure all UI elements update correctly
     setTimeout(() => window.location.reload(), 1500);
   }
 }
@@ -1358,7 +1331,6 @@ function updateLicenseDetails() {
   
   chrome.runtime.sendMessage({action: "getLicenseInfo"}, (response) => {
     if (!response || !response.success) {
-      // Handle error or no license info
       licenseDetails.innerHTML = `<div class="license-inactive">
         <p>No active license found or error retrieving license information.</p>
         <button id="addLicenseBtn" class="primary-btn">Add License Key</button>
@@ -1391,7 +1363,6 @@ function updateLicenseDetails() {
       const activationInfo = premiumData.timesActivatedMax ? 
         `<p><strong>Activations:</strong> ${premiumData.timesActivated || 1} / ${premiumData.timesActivatedMax}</p>` : '';
       
-      // Store token as a hidden input field
       const tokenInfo = premiumData.token ? 
         `<input type="hidden" id="licenseToken" value="${premiumData.token}">` : '';
       
@@ -1617,7 +1588,6 @@ function addLicenseManagementSection() {
       </div>
     `;
     
-    // Insert into the highlight container instead of before the form
     highlightContainer.appendChild(licenseSection);
     
     const header = licenseSection.querySelector('.collapsible-header');

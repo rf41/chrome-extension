@@ -97,7 +97,6 @@ function displayUserStats() {
             license: response.data
           });
         } else {
-          // Fall back to legacy methods if the new encrypted method fails
           fallbackLicenseCheck().then(resolve).catch(reject);
         }
       });
@@ -196,7 +195,6 @@ function displayUserStats() {
         response.shortcuts.forEach(shortcut => {
           if (shortcut.url) {
             try {
-              // Normalize domain by removing www. prefix
               const url = new URL(shortcut.url);
               const normalizedDomain = url.hostname.replace(/^www\./, '');
               uniqueDomains.add(normalizedDomain);
@@ -227,7 +225,6 @@ function displayUserStats() {
           syncData.customShortcuts.forEach(shortcut => {
             if (shortcut.url) {
               try {
-                // Normalize domain by removing www. prefix
                 const url = new URL(shortcut.url);
                 const normalizedDomain = url.hostname.replace(/^www\./, '');
                 uniqueDomains.add(normalizedDomain);
@@ -255,7 +252,6 @@ function displayUserStats() {
           localData.customShortcuts.forEach(shortcut => {
             if (shortcut.url) {
               try {
-                // Normalize domain by removing www. prefix
                 const url = new URL(shortcut.url);
                 const normalizedDomain = url.hostname.replace(/^www\./, '');
                 uniqueDomains.add(normalizedDomain);
@@ -279,7 +275,6 @@ function displayUserStats() {
             shortcutCount++;
             
             try {
-              // Normalize domain by removing www. prefix
               const url = new URL(item.url);
               const normalizedDomain = url.hostname.replace(/^www\./, '');
               uniqueDomains.add(normalizedDomain);

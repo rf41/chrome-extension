@@ -22,14 +22,11 @@ function getCurrentDomain() {
 function isDomainMatch(targetDomain, currentDomain) {
   if (!targetDomain || !currentDomain) return false;
 
-  // Normalize domains by removing www. prefix
   const normalizedTarget = targetDomain.toLowerCase().replace(/^www\./, '');
   const normalizedCurrent = currentDomain.toLowerCase().replace(/^www\./, '');
   
-  // Direct match after normalization
   if (normalizedTarget === normalizedCurrent) return true;
   
-  // Handle wildcard patterns
   if (targetDomain.startsWith('*.')) {
     const baseDomain = targetDomain.substring(2).replace(/^www\./, '');
     return normalizedCurrent === baseDomain || normalizedCurrent.endsWith('.' + baseDomain);
@@ -106,7 +103,6 @@ function createElement(tag, props = {}, children = null) {
     }
   });
   
-  // Add children
   if (children) {
     if (Array.isArray(children)) {
       children.forEach(child => {
@@ -133,7 +129,6 @@ function togglePanel() {
   const panel = document.getElementById('shortcut-ext-panel');
   if (!panel) return;
   
-  // Don't toggle if panel was recently dragged
   if (panel.getAttribute('data-recently-dragged') === 'true') {
     return;
   }
@@ -152,8 +147,8 @@ function togglePanel() {
   
   const viewportWidth = window.innerWidth;
   const viewportHeight = window.innerHeight;
-  const expandedWidth = 320;  // Fixed width value
-  const expandedHeight = 460; // Fixed height value
+  const expandedWidth = 320;
+  const expandedHeight = 460;
   
   const spaceRight = viewportWidth - rect.right;
   const spaceLeft = rect.left;
