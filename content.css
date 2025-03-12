@@ -40,7 +40,7 @@
   height: var(--panel-collapsed-height) !important;
   border-radius: 12px !important;
   background: #005FAC !important;
-  border: none !important;
+  border: 2px solid orange !important; /* Adding white border for better visibility */
   font-size: 20px !important;
   cursor: pointer !important;
   display: flex !important;
