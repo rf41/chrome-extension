@@ -1083,11 +1083,8 @@ function showPremiumUpgradeModal() {
           <li><strong>Unlimited shortcuts</strong> per domain</li>
           <li><strong>Priority support</strong> for any issues</li>
           <li><strong>Early access</strong> to new features</li>
+          <li><strong>One-time payment</strong> - no subscription</li>
         </ul>
-      </div>
-      
-      <div class="premium-price">
-        <p class="price-tag">$4.99 <span>one-time payment</span></p>
       </div>
       
       <div class="modal-buttons">
