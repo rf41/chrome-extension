@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Smart Shortcut Panel",
   "version": "1.0.0",
-  "description": "Smart Shortcut Panel gives you instant access to your most used pages in websites. Create domain-specific shortcuts and navigate with keyboard commands.",
+  "description": "Floating panel shows dynamic shortcuts per website, giving quick access to your most-used pages and boosting productivity.",
   "background": {
     "service_worker": "background.js"
   },
